@@ -111,6 +111,38 @@ class APIClient {
         try await request("GET", path: "/categories")
     }
 
+    // MARK: - Upload
+
+    struct PresignedResponse: Codable {
+        let uploadUrl: String
+        let fileUrl: String
+        let key: String
+    }
+
+    func getPresignedUrl(folder: String, contentType: String = "image/jpeg") async throws -> PresignedResponse {
+        struct Body: Codable { let folder: String; let contentType: String }
+        return try await request("POST", path: "/upload/presign", body: Body(folder: folder, contentType: contentType), authenticated: true)
+    }
+
+    func uploadImage(data: Data, to presignedUrl: String, contentType: String = "image/jpeg") async throws {
+        guard let url = URL(string: presignedUrl) else { throw APIError.invalidURL }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PUT"
+        req.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        req.httpBody = data
+        let (_, response) = try await URLSession.shared.data(for: req)
+        let httpResponse = response as! HTTPURLResponse
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.httpError(httpResponse.statusCode, "Upload failed")
+        }
+    }
+
+    func uploadPhoto(imageData: Data, folder: String) async throws -> String {
+        let presigned = try await getPresignedUrl(folder: folder)
+        try await uploadImage(data: imageData, to: presigned.uploadUrl)
+        return presigned.fileUrl
+    }
+
     // MARK: - Listings
 
     func createListing(_ req: CreateListingRequest) async throws -> Listing {
