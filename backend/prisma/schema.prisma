@@ -61,6 +61,7 @@ model User {
   kycStatus        KycStatus @default(none) @map("kyc_status")
   kycProviderRefId String?  @map("kyc_provider_ref_id")
   payoutMethod     String?  @map("payout_method")
+  fcmToken         String?  @map("fcm_token")
   ratingAvg        Float    @default(0) @map("rating_avg")
   ratingCount      Int      @default(0) @map("rating_count")
   createdAt        DateTime @default(now()) @map("created_at")

@@ -230,4 +230,14 @@ class APIClient {
     func getReviewsForUser(userId: String) async throws -> [Review] {
         try await request("GET", path: "/reviews/user/\(userId)")
     }
+
+    // MARK: - Payments
+
+    func initiatePayment(orderId: String) async throws -> PaymentInitResponse {
+        try await request("POST", path: "/payments/initiate/\(orderId)", authenticated: true)
+    }
+
+    func registerFCMToken(_ token: String) async throws {
+        let _: [String: String] = try await request("POST", path: "/notifications/register-token", body: ["fcmToken": token], authenticated: true)
+    }
 }

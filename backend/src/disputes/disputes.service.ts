@@ -1,10 +1,11 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateDisputeDto } from './dto/create-dispute.dto';
 
 @Injectable()
 export class DisputesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private notifications: NotificationsService) {}
 
   async create(userId: string, dto: CreateDisputeDto) {
     const order = await this.prisma.order.findUnique({ where: { id: dto.orderId } });
@@ -33,6 +34,8 @@ export class DisputesService {
       where: { id: dto.orderId },
       data: { status: 'disputed' },
     });
+
+    this.notifications.notifyDisputeOpened(order.sellerId, dto.orderId);
 
     return dispute;
   }

@@ -1,11 +1,12 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { RespondOfferDto } from './dto/respond-offer.dto';
 
 @Injectable()
 export class OffersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private notifications: NotificationsService) {}
 
   async create(buyerId: string, dto: CreateOfferDto) {
     const listing = await this.prisma.listing.findUnique({
@@ -20,7 +21,7 @@ export class OffersService {
     });
     if (existingPending) throw new BadRequestException('You already have a pending offer on this listing');
 
-    return this.prisma.offer.create({
+    const offer = await this.prisma.offer.create({
       data: {
         listingId: dto.listingId,
         buyerId,
@@ -29,6 +30,11 @@ export class OffersService {
       },
       include: { listing: { select: { title: true, price: true } }, buyer: { select: { id: true, name: true } } },
     });
+
+    const buyer = await this.prisma.user.findUnique({ where: { id: buyerId }, select: { name: true } });
+    this.notifications.notifyNewOffer(listing.sellerId, buyer?.name || 'Someone', dto.amount, listing.title);
+
+    return offer;
   }
 
   async respond(sellerId: string, offerId: string, dto: RespondOfferDto) {
@@ -60,11 +66,15 @@ export class OffersService {
       });
     }
 
-    return this.prisma.offer.update({
+    const result = await this.prisma.offer.update({
       where: { id: offerId },
       data: { status: dto.action },
       include: { listing: { select: { title: true, price: true } } },
     });
+
+    this.notifications.notifyOfferResponse(offer.buyerId, dto.action, offer.listing.title);
+
+    return result;
   }
 
   async findByListing(listingId: string) {

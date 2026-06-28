@@ -1,10 +1,11 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 
 @Injectable()
 export class OrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private notifications: NotificationsService) {}
 
   async create(buyerId: string, dto: CreateOrderDto) {
     const listing = await this.prisma.listing.findUnique({ where: { id: dto.listingId } });
@@ -54,10 +55,14 @@ export class OrdersService {
     // MyFatoorah placeholder — in production this would call the payment API
     const escrowRef = `MF-PLACEHOLDER-${Date.now()}`;
 
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: { status: 'paid_escrow', escrowPaymentRefId: escrowRef },
     });
+
+    this.notifications.notifyOrderPaid(order.sellerId, orderId);
+
+    return updated;
   }
 
   async ship(sellerId: string, orderId: string, trackingNumber?: string) {
@@ -65,10 +70,14 @@ export class OrdersService {
     if (order.sellerId !== sellerId) throw new ForbiddenException('Not your order');
     if (order.status !== 'paid_escrow') throw new BadRequestException('Order not paid yet');
 
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: { status: 'shipped', trackingNumber: trackingNumber || null },
     });
+
+    this.notifications.notifyOrderShipped(order.buyerId, orderId, trackingNumber);
+
+    return updated;
   }
 
   async confirmDelivery(buyerId: string, orderId: string) {

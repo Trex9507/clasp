@@ -1,10 +1,11 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 
 @Injectable()
 export class ReviewsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private notifications: NotificationsService) {}
 
   async create(reviewerId: string, dto: CreateReviewDto) {
     const order = await this.prisma.order.findUnique({ where: { id: dto.orderId } });
@@ -41,6 +42,9 @@ export class ReviewsService {
         ratingCount: stats._count.rating,
       },
     });
+
+    const reviewer = await this.prisma.user.findUnique({ where: { id: reviewerId }, select: { name: true } });
+    this.notifications.notifyNewReview(revieweeId, reviewer?.name || 'Someone', dto.rating);
 
     return review;
   }
