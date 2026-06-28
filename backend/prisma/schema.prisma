@@ -65,8 +65,13 @@ model User {
   ratingCount      Int      @default(0) @map("rating_count")
   createdAt        DateTime @default(now()) @map("created_at")
 
-  listings Listing[]
-  offers   Offer[]
+  listings       Listing[]
+  offers         Offer[]
+  buyerOrders    Order[]   @relation("BuyerOrders")
+  sellerOrders   Order[]   @relation("SellerOrders")
+  disputes       Dispute[]
+  reviewsGiven   Review[]  @relation("ReviewsGiven")
+  reviewsReceived Review[] @relation("ReviewsReceived")
 
   @@map("users")
 }
@@ -117,6 +122,7 @@ model Listing {
   brand    Brand?   @relation(fields: [brandId], references: [id])
   photos   ListingPhoto[]
   offers   Offer[]
+  orders   Order[]
 
   @@map("listings")
 }
@@ -151,6 +157,100 @@ model Offer {
 
   listing Listing @relation(fields: [listingId], references: [id])
   buyer   User    @relation(fields: [buyerId], references: [id])
+  order   Order?
 
   @@map("offers")
+}
+
+enum OrderStatus {
+  pending_payment
+  paid_escrow
+  shipped
+  delivered
+  dispute_window
+  completed
+  disputed
+  refunded
+  cancelled
+}
+
+enum DeliveryMethod {
+  hand_off
+  courier
+}
+
+model Order {
+  id                 String      @id @default(uuid())
+  listingId          String      @map("listing_id")
+  buyerId            String      @map("buyer_id")
+  sellerId           String      @map("seller_id")
+  offerId            String?     @unique @map("offer_id")
+  finalPrice         Float       @map("final_price")
+  deliveryMethod     DeliveryMethod @map("delivery_method")
+  deliveryAddress    String?     @map("delivery_address")
+  trackingNumber     String?     @map("tracking_number")
+  status             OrderStatus @default(pending_payment)
+  escrowPaymentRefId String?     @map("escrow_payment_ref_id")
+  deliveredAt        DateTime?   @map("delivered_at")
+  disputeDeadlineAt  DateTime?   @map("dispute_deadline_at")
+  createdAt          DateTime    @default(now()) @map("created_at")
+
+  listing  Listing  @relation(fields: [listingId], references: [id])
+  buyer    User     @relation("BuyerOrders", fields: [buyerId], references: [id])
+  seller   User     @relation("SellerOrders", fields: [sellerId], references: [id])
+  offer    Offer?   @relation(fields: [offerId], references: [id])
+  disputes Dispute[]
+  reviews  Review[]
+
+  @@map("orders")
+}
+
+enum DisputeReason {
+  not_authentic
+  not_as_described
+  damaged
+  not_received
+  other
+}
+
+enum DisputeStatus {
+  open
+  awaiting_seller
+  under_review
+  resolved_refund
+  resolved_release
+}
+
+model Dispute {
+  id                       String        @id @default(uuid())
+  orderId                  String        @map("order_id")
+  openedBy                 String        @map("opened_by")
+  reason                   DisputeReason
+  description              String?
+  status                   DisputeStatus @default(open)
+  sellerResponseDeadlineAt DateTime?     @map("seller_response_deadline_at")
+  resolutionNotes          String?       @map("resolution_notes")
+  createdAt                DateTime      @default(now()) @map("created_at")
+
+  order  Order @relation(fields: [orderId], references: [id])
+  opener User  @relation(fields: [openedBy], references: [id])
+
+  @@map("disputes")
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  orderId    String   @map("order_id")
+  reviewerId String   @map("reviewer_id")
+  revieweeId String   @map("reviewee_id")
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  order    Order @relation(fields: [orderId], references: [id])
+  reviewer User  @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  reviewee User  @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+
+  @@unique([orderId, reviewerId])
+  @@map("reviews")
 }

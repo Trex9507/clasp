@@ -271,4 +271,117 @@ describe('API (e2e)', () => {
       expect(res.body.length).toBeGreaterThanOrEqual(1);
     });
   });
+
+  describe('Orders → Disputes → Reviews (full flow)', () => {
+    let sellerToken: string;
+    let buyerToken: string;
+    let buyerId: string;
+    let sellerId: string;
+    let listingId: string;
+    let orderId: string;
+
+    beforeAll(async () => {
+      const sellerRes = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: `seller-order-${Date.now()}@test.com`, password: 'test123', name: 'OrderSeller', city: 'dubai' });
+      sellerToken = sellerRes.body.accessToken;
+      sellerId = sellerRes.body.user.id;
+
+      const buyerRes = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: `buyer-order-${Date.now()}@test.com`, password: 'test123', name: 'OrderBuyer', city: 'abu_dhabi' });
+      buyerToken = buyerRes.body.accessToken;
+      buyerId = buyerRes.body.user.id;
+
+      const listingRes = await request(app.getHttpServer())
+        .post('/listings')
+        .set('Authorization', `Bearer ${sellerToken}`)
+        .send({ title: 'Order Flow Item', categoryId: 'women-bags', condition: 'like_new', price: 2000, deliveryOptions: 'both' });
+      listingId = listingRes.body.id;
+    });
+
+    it('POST /orders — should create order (buy now)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/orders')
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .send({ listingId, deliveryMethod: 'hand_off' })
+        .expect(201);
+
+      expect(res.body.finalPrice).toBe(2000);
+      expect(res.body.status).toBe('pending_payment');
+      orderId = res.body.id;
+    });
+
+    it('POST /orders/:id/pay — should pay (escrow placeholder)', async () => {
+      const res = await request(app.getHttpServer())
+        .post(`/orders/${orderId}/pay`)
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .expect(201);
+
+      expect(res.body.status).toBe('paid_escrow');
+      expect(res.body.escrowPaymentRefId).toContain('MF-PLACEHOLDER');
+    });
+
+    it('PATCH /orders/:id/ship — seller ships', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/orders/${orderId}/ship`)
+        .set('Authorization', `Bearer ${sellerToken}`)
+        .send({ trackingNumber: 'TRACK123' })
+        .expect(200);
+
+      expect(res.body.status).toBe('shipped');
+    });
+
+    it('PATCH /orders/:id/delivered — buyer confirms delivery', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/orders/${orderId}/delivered`)
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .expect(200);
+
+      expect(res.body.status).toBe('dispute_window');
+      expect(res.body.disputeDeadlineAt).toBeDefined();
+    });
+
+    it('GET /orders/my — should list user orders', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/orders/my')
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .expect(200);
+
+      expect(res.body.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('POST /disputes — buyer opens dispute during window', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/disputes')
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .send({ orderId, reason: 'not_as_described', description: 'Color is different' })
+        .expect(201);
+
+      expect(res.body.status).toBe('awaiting_seller');
+    });
+
+    it('PATCH /disputes/:id/respond — seller responds', async () => {
+      const disputes = await request(app.getHttpServer())
+        .get(`/disputes/order/${orderId}`)
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .expect(200);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/disputes/${disputes.body[0].id}/respond`)
+        .set('Authorization', `Bearer ${sellerToken}`)
+        .send({ response: 'The color matches the photos' })
+        .expect(200);
+
+      expect(res.body.status).toBe('under_review');
+    });
+
+    it('POST /reviews — should reject review on non-completed order', async () => {
+      await request(app.getHttpServer())
+        .post('/reviews')
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .send({ orderId, rating: 4, comment: 'Good seller' })
+        .expect(400);
+    });
+  });
 });
