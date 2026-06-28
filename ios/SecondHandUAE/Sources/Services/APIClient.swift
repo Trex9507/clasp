@@ -160,4 +160,74 @@ class APIClient {
     func getListing(id: String) async throws -> Listing {
         try await request("GET", path: "/listings/\(id)")
     }
+
+    // MARK: - Offers
+
+    func createOffer(_ req: CreateOfferRequest) async throws -> Offer {
+        try await request("POST", path: "/offers", body: req, authenticated: true)
+    }
+
+    func respondToOffer(id: String, _ req: RespondOfferRequest) async throws -> Offer {
+        try await request("PATCH", path: "/offers/\(id)/respond", body: req, authenticated: true)
+    }
+
+    func getMyOffers() async throws -> [Offer] {
+        try await request("GET", path: "/offers/my", authenticated: true)
+    }
+
+    func getOffersForListing(id: String) async throws -> [Offer] {
+        try await request("GET", path: "/offers/listing/\(id)", authenticated: true)
+    }
+
+    // MARK: - Orders
+
+    func createOrder(_ req: CreateOrderRequest) async throws -> Order {
+        try await request("POST", path: "/orders", body: req, authenticated: true)
+    }
+
+    func payOrder(id: String) async throws -> Order {
+        try await request("POST", path: "/orders/\(id)/pay", authenticated: true)
+    }
+
+    func shipOrder(id: String, trackingNumber: String?) async throws -> Order {
+        struct Body: Codable { let trackingNumber: String? }
+        return try await request("PATCH", path: "/orders/\(id)/ship", body: Body(trackingNumber: trackingNumber), authenticated: true)
+    }
+
+    func confirmDelivery(orderId: String) async throws -> Order {
+        try await request("PATCH", path: "/orders/\(orderId)/delivered", authenticated: true)
+    }
+
+    func getMyOrders() async throws -> [Order] {
+        try await request("GET", path: "/orders/my", authenticated: true)
+    }
+
+    func getOrder(id: String) async throws -> Order {
+        try await request("GET", path: "/orders/\(id)", authenticated: true)
+    }
+
+    // MARK: - Disputes
+
+    func createDispute(_ req: CreateDisputeRequest) async throws -> Dispute {
+        try await request("POST", path: "/disputes", body: req, authenticated: true)
+    }
+
+    func respondToDispute(id: String, response: String) async throws -> Dispute {
+        struct Body: Codable { let response: String }
+        return try await request("PATCH", path: "/disputes/\(id)/respond", body: Body(response: response), authenticated: true)
+    }
+
+    func getDisputesForOrder(orderId: String) async throws -> [Dispute] {
+        try await request("GET", path: "/disputes/order/\(orderId)", authenticated: true)
+    }
+
+    // MARK: - Reviews
+
+    func createReview(_ req: CreateReviewRequest) async throws -> Review {
+        try await request("POST", path: "/reviews", body: req, authenticated: true)
+    }
+
+    func getReviewsForUser(userId: String) async throws -> [Review] {
+        try await request("GET", path: "/reviews/user/\(userId)")
+    }
 }

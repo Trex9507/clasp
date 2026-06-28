@@ -2,8 +2,14 @@ import SwiftUI
 
 struct ListingDetailView: View {
     let listingId: String
+    @AppStorage("userId") private var userId = ""
     @State private var listing: Listing?
     @State private var isLoading = true
+    @State private var showOfferSheet = false
+    @State private var showBuySheet = false
+    @State private var errorMessage: String?
+
+    private var isOwnListing: Bool { listing?.sellerId == userId }
 
     var body: some View {
         ScrollView {
@@ -25,7 +31,6 @@ struct ListingDetailView: View {
                     .frame(height: 300)
 
                     VStack(alignment: .leading, spacing: 12) {
-                        // Price and verification
                         HStack {
                             Text("AED \(Int(listing.price))")
                                 .font(.title2.bold())
@@ -41,7 +46,6 @@ struct ListingDetailView: View {
                             }
                         }
 
-                        // Disclaimer for verified items
                         if listing.verificationStatus == "verified" {
                             Text("\"Verified\" means the seller provided a code in the expected format plus a photo. It does not certify authenticity.")
                                 .font(.caption2)
@@ -51,20 +55,16 @@ struct ListingDetailView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 6))
                         }
 
-                        Text(listing.title)
-                            .font(.title3)
+                        Text(listing.title).font(.title3)
 
                         if let brand = listing.brand {
-                            Text(brand.name)
-                                .foregroundStyle(.secondary)
+                            Text(brand.name).foregroundStyle(.secondary)
                         }
 
                         if let description = listing.description {
-                            Text(description)
-                                .font(.body)
+                            Text(description).font(.body)
                         }
 
-                        // Details
                         HStack(spacing: 16) {
                             Label(listing.condition.replacingOccurrences(of: "_", with: " ").capitalized, systemImage: "sparkles")
                             if let size = listing.size {
@@ -74,7 +74,6 @@ struct ListingDetailView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                        // Seller info
                         if let seller = listing.seller {
                             Divider()
                             HStack {
@@ -89,19 +88,28 @@ struct ListingDetailView: View {
                             }
                         }
 
-                        // Action buttons
-                        VStack(spacing: 8) {
-                            Button("Buy Now — AED \(Int(listing.price))") {}
+                        if let errorMessage {
+                            Text(errorMessage).font(.caption).foregroundStyle(.red)
+                        }
+
+                        if listing.status == "active" && !isOwnListing {
+                            VStack(spacing: 8) {
+                                Button("Buy Now — AED \(Int(listing.price))") {
+                                    showBuySheet = true
+                                }
                                 .buttonStyle(.borderedProminent)
                                 .controlSize(.large)
                                 .frame(maxWidth: .infinity)
 
-                            Button("Make an Offer") {}
+                                Button("Make an Offer") {
+                                    showOfferSheet = true
+                                }
                                 .buttonStyle(.bordered)
                                 .controlSize(.large)
                                 .frame(maxWidth: .infinity)
+                            }
+                            .padding(.top)
                         }
-                        .padding(.top)
                     }
                     .padding()
                 }
@@ -109,10 +117,18 @@ struct ListingDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            do {
-                listing = try await APIClient.shared.getListing(id: listingId)
-            } catch {}
+            do { listing = try await APIClient.shared.getListing(id: listingId) } catch {}
             isLoading = false
         }
+        .sheet(isPresented: $showOfferSheet) {
+            MakeOfferView(listing: listing!) { await reload() }
+        }
+        .sheet(isPresented: $showBuySheet) {
+            BuyNowView(listing: listing!)
+        }
+    }
+
+    private func reload() async {
+        do { listing = try await APIClient.shared.getListing(id: listingId) } catch {}
     }
 }
