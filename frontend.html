@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>SecondHand UAE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #f5f3f0;
+  --card: #ffffff;
+  --text: #1a1a1a;
+  --muted: #8a8a8a;
+  --light: #e8e5e1;
+  --accent: #1a1a1a;
+  --blue: #185FA5;
+  --green: #3B6D11;
+  --orange: #BA7517;
+  --red: #A32D2D;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); max-width: 430px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+.screen { display: none !important; flex: 1; flex-direction: column; }
+.screen.active { display: flex !important; }
+
+/* Nav */
+.navbar { padding: 16px 20px 12px; background: var(--card); border-bottom: 0.5px solid var(--light); display: flex; justify-content: space-between; align-items: center; }
+.navbar h1 { font-size: 22px; font-weight: 600; }
+.navbar-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; }
+
+/* Tab bar */
+.tabbar { display: flex; background: var(--card); border-top: 0.5px solid var(--light); padding: 8px 0 max(12px, env(safe-area-inset-bottom)); position: sticky; bottom: 0; }
+.tab { flex: 1; text-align: center; cursor: pointer; padding: 4px 0; }
+.tab svg { width: 22px; height: 22px; stroke: var(--muted); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tab.active svg { stroke: var(--text); }
+.tab span { display: block; font-size: 10px; margin-top: 2px; color: var(--muted); }
+.tab.active span { color: var(--text); font-weight: 600; }
+
+/* Cards */
+.card { background: var(--card); border-radius: 14px; overflow: hidden; }
+.listing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 16px; }
+.listing-card { cursor: pointer; }
+.listing-card .thumb { aspect-ratio: 0.85; background: var(--light); border-radius: 12px; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.listing-card .thumb img { width: 100%; height: 100%; object-fit: cover; }
+.listing-card .thumb .badge { position: absolute; top: 6px; left: 6px; background: linear-gradient(135deg, #378ADD, #185FA5); color: white; font-size: 9px; font-weight: 600; padding: 3px 7px; border-radius: 10px; display: flex; align-items: center; gap: 3px; }
+.listing-card .info { padding: 8px 2px 4px; }
+.listing-card .brand { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; }
+.listing-card .title { font-size: 12px; margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.listing-card .price { font-size: 13px; font-weight: 600; }
+
+/* Filter */
+.filter-bar { padding: 10px 16px; display: flex; gap: 8px; }
+.pill { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; border: none; cursor: pointer; background: var(--card); color: var(--text); border: 0.5px solid var(--light); }
+.pill.active { background: var(--blue); color: white; border-color: var(--blue); }
+
+/* Search */
+.search-bar { margin: 0 16px 4px; padding: 10px 14px; background: var(--card); border-radius: 12px; border: 0.5px solid var(--light); font-size: 14px; width: calc(100% - 32px); outline: none; }
+.search-bar:focus { border-color: var(--blue); }
+
+/* Detail */
+.detail-hero { height: 380px; background: var(--light); display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+.detail-hero img { width: 100%; height: 100%; object-fit: cover; }
+.detail-body { padding: 20px; flex: 1; }
+.detail-price { font-size: 26px; font-weight: 700; }
+.detail-title { font-size: 18px; font-weight: 500; margin: 8px 0 2px; }
+.detail-brand { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+.disclaimer { margin: 12px 0; padding: 10px 12px; background: var(--bg); border-radius: 10px; font-size: 11px; color: var(--muted); display: flex; gap: 8px; line-height: 1.4; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0; }
+.chip { padding: 5px 10px; background: var(--bg); border-radius: 12px; font-size: 11px; color: var(--muted); }
+.seller-card { margin: 16px 0; padding: 12px; background: var(--bg); border-radius: 12px; display: flex; align-items: center; gap: 12px; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--light); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 16px; }
+.seller-card .name { font-size: 14px; font-weight: 600; }
+.seller-card .city { font-size: 11px; color: var(--muted); }
+.seller-card .rating { margin-left: auto; text-align: right; font-size: 12px; }
+
+.action-bar { display: flex; gap: 10px; padding: 14px 20px; background: var(--card); border-top: 0.5px solid var(--light); }
+.btn { flex: 1; padding: 14px; border-radius: 12px; font-size: 14px; font-weight: 600; text-align: center; cursor: pointer; border: none; }
+.btn-primary { background: var(--accent); color: white; }
+.btn-secondary { background: transparent; border: 0.5px solid var(--light); color: var(--text); }
+.btn:active { opacity: 0.85; transform: scale(0.98); }
+
+/* Orders */
+.order-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+.order-card { background: var(--card); border-radius: 14px; padding: 14px; display: flex; gap: 12px; align-items: center; cursor: pointer; }
+.order-thumb { width: 52px; height: 52px; border-radius: 10px; background: var(--light); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+.order-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.order-info { flex: 1; min-width: 0; }
+.order-info .title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.order-info .sub { font-size: 11px; color: var(--muted); margin: 2px 0; }
+.status-pill { display: inline-block; font-size: 9px; font-weight: 600; text-transform: uppercase; padding: 3px 7px; border-radius: 8px; }
+.status-paid_escrow, .status-shipped, .status-dispute_window { background: #E6F1FB; color: #185FA5; }
+.status-completed { background: #EAF3DE; color: #3B6D11; }
+.status-pending_payment { background: #FAEEDA; color: #BA7517; }
+.status-disputed, .status-refunded { background: #FCEBEB; color: #A32D2D; }
+.order-price { font-size: 13px; font-weight: 600; text-align: right; }
+
+/* Segmented */
+.segmented { display: flex; margin: 0 16px 8px; background: var(--light); border-radius: 10px; padding: 3px; }
+.seg-btn { flex: 1; text-align: center; padding: 7px; font-size: 12px; font-weight: 500; border-radius: 8px; cursor: pointer; color: var(--muted); border: none; background: transparent; }
+.seg-btn.active { background: var(--card); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+
+/* Profile */
+.profile-header { text-align: center; padding: 32px 20px; background: var(--card); border-radius: 16px; margin: 16px; }
+.profile-avatar { width: 72px; height: 72px; border-radius: 50%; background: var(--light); margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 28px; color: var(--muted); }
+.profile-name { font-size: 20px; font-weight: 600; }
+.profile-city { font-size: 13px; color: var(--muted); margin: 4px 0; }
+.profile-rating { font-size: 13px; margin-top: 8px; }
+
+/* Onboarding */
+.onboarding { display: flex; flex-direction: column; align-items: center; padding: 0 28px; flex: 1; background: linear-gradient(to bottom, #f7f5f2, #ffffff); }
+.onboarding .logo { margin-top: auto; text-align: center; }
+.onboarding .logo-icon { width: 90px; height: 90px; border-radius: 50%; background: rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 38px; }
+.onboarding .logo h2 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+.onboarding .logo h3 { font-size: 28px; font-weight: 300; letter-spacing: 5px; color: var(--muted); }
+.onboarding .logo p { font-size: 13px; color: var(--muted); margin-top: 8px; }
+.features { width: 100%; margin: 32px 0; display: flex; flex-direction: column; gap: 12px; }
+.feature { display: flex; gap: 12px; align-items: center; }
+.feature-icon { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.feature .ft { font-size: 13px; font-weight: 600; }
+.feature .fs { font-size: 11px; color: var(--muted); }
+.onboarding .actions { width: 100%; margin: auto 0 24px; display: flex; flex-direction: column; gap: 10px; }
+.btn-dark { width: 100%; padding: 15px; border-radius: 14px; background: var(--accent); color: white; font-size: 15px; font-weight: 600; border: none; cursor: pointer; }
+.btn-ghost { width: 100%; padding: 14px; background: transparent; border: none; font-size: 14px; font-weight: 500; cursor: pointer; color: var(--text); }
+
+/* Auth forms */
+.auth-form { padding: 24px; flex: 1; }
+.auth-form h2 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+.auth-form .sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 6px; }
+.field input { width: 100%; padding: 13px 14px; border-radius: 12px; border: none; background: var(--bg); font-size: 14px; outline: none; }
+.field input:focus { box-shadow: 0 0 0 2px var(--blue); }
+.city-toggle { display: flex; gap: 8px; }
+.city-btn { flex: 1; padding: 11px; border-radius: 10px; font-size: 13px; font-weight: 500; text-align: center; cursor: pointer; border: none; background: var(--bg); color: var(--text); }
+.city-btn.active { background: var(--accent); color: white; }
+.back-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px 8px; }
+.empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+.empty .icon { font-size: 40px; margin-bottom: 12px; }
+.scroll { flex: 1; overflow-y: auto; }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: flex-end; justify-content: center; z-index: 100; }
+.modal-overlay.show { display: flex; }
+.modal { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-width: 430px; max-height: 85vh; overflow-y: auto; padding: 24px; }
+.modal h3 { font-size: 18px; font-weight: 600; margin-bottom: 16px; text-align: center; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- ONBOARDING -->
+<div id="onboarding-screen" class="screen active">
+  <div class="onboarding">
+    <div class="logo">
+      <div class="logo-icon">👜</div>
+      <h2>SecondHand</h2>
+      <h3>UAE</h3>
+      <p>Buy & sell pre-loved fashion<br>in Dubai & Abu Dhabi</p>
+    </div>
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon" style="background:#E6F1FB;color:#185FA5;">✓</div>
+        <div><div class="ft">Verified listings</div><div class="fs">Seller-declared verification</div></div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon" style="background:#EAF3DE;color:#3B6D11;">🔒</div>
+        <div><div class="ft">Secure payments</div><div class="fs">Escrow-protected transactions</div></div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon" style="background:#FAEEDA;color:#854F0B;">📍</div>
+        <div><div class="ft">Local community</div><div class="fs">Dubai & Abu Dhabi</div></div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn-dark" onclick="showScreen('register')">Get started</button>
+      <button class="btn-ghost" onclick="showScreen('login')">I already have an account</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-screen" class="screen">
+  <div class="navbar">
+    <button class="back-btn" onclick="showScreen('onboarding')">←</button>
+    <span></span>
+  </div>
+  <div class="auth-form">
+    <h2>Welcome back</h2>
+    <p class="sub">Log in to your account</p>
+    <div class="field"><label>Email</label><input type="email" id="login-email" placeholder="your@email.com"></div>
+    <div class="field"><label>Password</label><input type="password" id="login-password" placeholder="Enter password"></div>
+    <div id="login-error" style="color:var(--red);font-size:12px;margin-bottom:12px;display:none;"></div>
+    <button class="btn-dark" onclick="doLogin()">Log in</button>
+  </div>
+</div>
+
+<!-- REGISTER -->
+<div id="register-screen" class="screen">
+  <div class="navbar">
+    <button class="back-btn" onclick="showScreen('onboarding')">←</button>
+    <span></span>
+  </div>
+  <div class="auth-form">
+    <h2>Create your account</h2>
+    <p class="sub">Start buying & selling in minutes</p>
+    <div class="field"><label>Name</label><input id="reg-name" placeholder="Your name"></div>
+    <div class="field"><label>Email</label><input type="email" id="reg-email" placeholder="your@email.com"></div>
+    <div class="field"><label>Password</label><input type="password" id="reg-password" placeholder="Min 6 characters"></div>
+    <div class="field">
+      <label>City</label>
+      <div class="city-toggle">
+        <button type="button" class="city-btn active" onclick="selectCity(this,'dubai')">Dubai</button>
+        <button type="button" class="city-btn" onclick="selectCity(this,'abu_dhabi')">Abu Dhabi</button>
+      </div>
+    </div>
+    <div id="reg-error" style="color:var(--red);font-size:12px;margin-bottom:12px;display:none;"></div>
+    <button class="btn-dark" onclick="doRegister()">Create account</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="main-screen" class="screen">
+  <!-- Feed -->
+  <div id="feed-page" class="page active" style="display:flex;flex:1;flex-direction:column;">
+    <div class="navbar">
+      <h1>Browse</h1>
+      <button class="navbar-btn" onclick="showCreateListing()" title="Sell">＋</button>
+    </div>
+    <input class="search-bar" type="text" placeholder="Search items..." oninput="debounceSearch(this.value)">
+    <div class="filter-bar">
+      <button class="pill active" id="verified-pill" onclick="toggleVerified()">✓ Verified only</button>
+    </div>
+    <div class="scroll">
+      <div class="listing-grid" id="listings-grid"></div>
+      <div id="feed-empty" class="empty" style="display:none;">
+        <div class="icon">📦</div>
+        <p>No items found</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail -->
+  <div id="detail-page" class="page" style="display:none;flex:1;flex-direction:column;">
+    <div id="detail-content"></div>
+    <div class="action-bar" id="detail-actions"></div>
+  </div>
+
+  <!-- Orders -->
+  <div id="orders-page" class="page" style="display:none;flex:1;flex-direction:column;">
+    <div class="navbar"><h1>Orders</h1></div>
+    <div class="segmented" id="order-filter">
+      <button class="seg-btn active" onclick="filterOrders('all',this)">All</button>
+      <button class="seg-btn" onclick="filterOrders('buying',this)">Buying</button>
+      <button class="seg-btn" onclick="filterOrders('selling',this)">Selling</button>
+    </div>
+    <div class="scroll">
+      <div class="order-list" id="orders-list"></div>
+      <div id="orders-empty" class="empty" style="display:none;">
+        <div class="icon">🛍</div>
+        <p>No orders yet</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile -->
+  <div id="profile-page" class="page" style="display:none;flex:1;flex-direction:column;">
+    <div class="navbar"><h1>Profile</h1></div>
+    <div class="scroll" id="profile-content"></div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tabbar">
+    <div class="tab active" onclick="switchTab('feed')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span>Browse</span>
+    </div>
+    <div class="tab" onclick="switchTab('orders')">
+      <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      <span>Orders</span>
+    </div>
+    <div class="tab" onclick="showCreateListing()">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <span>Sell</span>
+    </div>
+    <div class="tab" onclick="switchTab('profile')">
+      <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Profile</span>
+    </div>
+  </div>
+</div>
+
+<!-- OFFER MODAL -->
+<div class="modal-overlay" id="offer-modal">
+  <div class="modal">
+    <div class="modal-header"><h3>Make an offer</h3><button class="modal-close" onclick="closeModal('offer-modal')">×</button></div>
+    <div id="offer-item-preview" style="display:flex;gap:12px;padding:14px;background:var(--bg);border-radius:12px;margin-bottom:16px;"></div>
+    <div class="field"><label>Your offer (AED)</label><input type="number" id="offer-amount" placeholder="0" style="font-size:28px;font-weight:700;"></div>
+    <button class="btn-dark" onclick="submitOffer()">Send offer</button>
+  </div>
+</div>
+
+<!-- BUY MODAL -->
+<div class="modal-overlay" id="buy-modal">
+  <div class="modal">
+    <div class="modal-header"><h3>Buy now</h3><button class="modal-close" onclick="closeModal('buy-modal')">×</button></div>
+    <div id="buy-item-preview" style="padding:14px;background:var(--bg);border-radius:12px;margin-bottom:16px;"></div>
+    <div class="field"><label>Delivery method</label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px;" id="delivery-options">
+        <label style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--bg);border-radius:12px;cursor:pointer;border:1.5px solid var(--accent);">
+          <input type="radio" name="delivery" value="hand_off" checked onchange="updateDelivery()"> <div><b style="font-size:13px;">Hand-off</b><br><span style="font-size:11px;color:var(--muted);">Meet in person</span></div>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--bg);border-radius:12px;cursor:pointer;border:1.5px solid transparent;">
+          <input type="radio" name="delivery" value="courier" onchange="updateDelivery()"> <div><b style="font-size:13px;">Courier</b><br><span style="font-size:11px;color:var(--muted);">Shipped to you</span></div>
+        </label>
+      </div>
+    </div>
+    <div id="address-field" class="field" style="display:none;"><label>Address</label><input id="buy-address" placeholder="Your delivery address"></div>
+    <button class="btn-dark" id="buy-submit-btn" onclick="submitBuy()">Place order</button>
+  </div>
+</div>
+
+<!-- CREATE LISTING MODAL -->
+<div class="modal-overlay" id="create-modal">
+  <div class="modal" style="max-height:90vh;">
+    <div class="modal-header"><h3>Sell an item</h3><button class="modal-close" onclick="closeModal('create-modal')">×</button></div>
+    <div class="field"><label>Title</label><input id="cl-title" placeholder="e.g. Gucci Marmont Bag"></div>
+    <div class="field"><label>Category</label><select id="cl-category" style="width:100%;padding:12px;border-radius:12px;border:none;background:var(--bg);font-size:14px;"></select></div>
+    <div class="field"><label>Brand</label><select id="cl-brand" style="width:100%;padding:12px;border-radius:12px;border:none;background:var(--bg);font-size:14px;" onchange="onBrandChange()"></select></div>
+    <div id="cl-verification" style="display:none;padding:14px;background:#FAEEDA;border-radius:12px;margin-bottom:16px;">
+      <p style="font-size:11px;color:#854F0B;font-weight:600;margin-bottom:8px;">Verification available for this brand</p>
+      <div class="field"><label>Code</label><input id="cl-vcode" placeholder="Enter verification code"></div>
+      <p style="font-size:10px;color:var(--muted);line-height:1.4;">The "Verified" badge means the seller provided a code in the expected format. It does not certify authenticity.</p>
+    </div>
+    <div class="field"><label>Condition</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="pill active" onclick="selectCondition(this,'like_new')">Like new</button>
+        <button class="pill" onclick="selectCondition(this,'new_with_tags')">New w/ tags</button>
+        <button class="pill" onclick="selectCondition(this,'good')">Good</button>
+        <button class="pill" onclick="selectCondition(this,'fair')">Fair</button>
+      </div>
+    </div>
+    <div class="field"><label>Price (AED)</label><input type="number" id="cl-price" placeholder="0"></div>
+    <div class="field"><label>Description</label><input id="cl-desc" placeholder="Optional description"></div>
+    <button class="btn-dark" onclick="submitListing()">Publish listing</button>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:3000';
+var token = localStorage.getItem('token');
+var userId = localStorage.getItem('userId');
+var userName = localStorage.getItem('userName');
+var userCity = localStorage.getItem('userCity');
+var currentListing = null;
+var allBrands = [];
+var allCategories = [];
+var verifiedOnly = true;
+var selectedCondition = 'like_new';
+var selectedCity = 'dubai';
+var searchTimeout = null;
+
+if (token) { showScreen('main'); loadFeed(); }
+
+function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (body) opts.body = JSON.stringify(body);
+  return fetch(API + path, opts).then(async r => {
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.message || 'Error');
+    return data;
+  });
+}
+
+function showScreen(name) {
+  document.querySelectorAll('#onboarding-screen, #login-screen, #register-screen, #main-screen').forEach(s => {
+    s.classList.remove('active');
+  });
+  const el = document.getElementById(name + '-screen');
+  if (el) el.classList.add('active');
+  if (name === 'main') {
+    switchTab('feed');
+    loadFeed();
+  }
+}
+
+function switchTab(tab) {
+  ['feed','detail','orders','profile'].forEach(t => {
+    const p = document.getElementById(t + '-page');
+    if (p) p.style.display = t === tab ? 'flex' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const tabs = ['feed','orders','sell','profile'];
+    t.classList.toggle('active', tabs[i] === tab);
+  });
+  if (tab === 'orders') loadOrders();
+  if (tab === 'profile') loadProfile();
+  if (tab === 'feed') loadFeed();
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+  try {
+    const res = await api('POST', '/auth/login', { email, password });
+    token = res.accessToken; userId = res.user.id; userName = res.user.name; userCity = res.user.city;
+    localStorage.setItem('token', token); localStorage.setItem('userId', userId);
+    localStorage.setItem('userName', userName); localStorage.setItem('userCity', userCity);
+    showScreen('main');
+  } catch (e) {
+    const el = document.getElementById('login-error'); el.textContent = e.message; el.style.display = 'block';
+  }
+}
+
+async function doRegister() {
+  const name = document.getElementById('reg-name').value;
+  const email = document.getElementById('reg-email').value;
+  const password = document.getElementById('reg-password').value;
+  try {
+    const res = await api('POST', '/auth/register', { email, password, name, city: selectedCity });
+    token = res.accessToken; userId = res.user.id; userName = res.user.name; userCity = res.user.city;
+    localStorage.setItem('token', token); localStorage.setItem('userId', userId);
+    localStorage.setItem('userName', userName); localStorage.setItem('userCity', userCity);
+    showScreen('main');
+  } catch (e) {
+    const el = document.getElementById('reg-error'); el.textContent = e.message; el.style.display = 'block';
+  }
+}
+
+function selectCity(btn, city) {
+  selectedCity = city;
+  btn.parentElement.querySelectorAll('.city-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function toggleVerified() {
+  verifiedOnly = !verifiedOnly;
+  document.getElementById('verified-pill').classList.toggle('active', verifiedOnly);
+  loadFeed();
+}
+
+function debounceSearch(q) {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => loadFeed(q), 300);
+}
+
+async function loadFeed(query) {
+  let url = '/listings?verifiedOnly=' + verifiedOnly + '&page=1';
+  if (query) url += '&q=' + encodeURIComponent(query);
+  try {
+    const data = await api('GET', url);
+    const grid = document.getElementById('listings-grid');
+    const empty = document.getElementById('feed-empty');
+    if (!data.items.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    grid.innerHTML = data.items.map(l => {
+      const photo = l.photos?.[0]?.url;
+      const imgHtml = photo && !photo.includes('example.com')
+        ? `<img src="${photo}" alt="">`
+        : `<div style="font-size:28px;color:#c4b8a8;">👜</div>`;
+      const badge = l.verificationStatus === 'verified' ? '<div class="badge">✓ Verified</div>' : '';
+      return `<div class="listing-card" onclick="showDetail('${l.id}')">
+        <div class="thumb">${imgHtml}${badge}</div>
+        <div class="info">
+          <div class="brand">${l.brand?.name || ''}</div>
+          <div class="title">${l.title}</div>
+          <div class="price">AED ${Math.round(l.price)}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {}
+}
+
+async function showDetail(id) {
+  try {
+    const l = await api('GET', '/listings/' + id);
+    currentListing = l;
+    document.getElementById('feed-page').style.display = 'none';
+    const dp = document.getElementById('detail-page');
+    dp.style.display = 'flex';
+
+    const photo = l.photos?.[0]?.url;
+    const imgHtml = photo && !photo.includes('example.com')
+      ? `<img src="${photo}" alt="" style="width:100%;height:100%;object-fit:cover;">`
+      : `<div style="font-size:56px;color:#c4b8a8;">👜</div>`;
+
+    const badge = l.verificationStatus === 'verified' ? `<div style="display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#378ADD,#185FA5);color:white;font-size:11px;font-weight:600;padding:4px 10px;border-radius:12px;">✓ Verified</div>` : '';
+    const disclaimer = l.verificationStatus === 'verified' ? `<div class="disclaimer">ℹ️ "Verified" means the seller provided a code in the expected format plus a photo. It does not certify authenticity.</div>` : '';
+    const seller = l.seller || {};
+    const condition = (l.condition || '').replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
+
+    document.getElementById('detail-content').innerHTML = `
+      <div style="position:relative;">
+        <button onclick="backToFeed()" style="position:absolute;top:16px;left:16px;z-index:10;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.9);border:none;font-size:18px;cursor:pointer;">←</button>
+        <div class="detail-hero">${imgHtml}</div>
+      </div>
+      <div class="detail-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div class="detail-price">AED ${Math.round(l.price)}</div>
+          ${badge}
+        </div>
+        <div class="detail-title">${l.title}</div>
+        <div class="detail-brand">${l.brand?.name || ''}</div>
+        ${disclaimer}
+        <div class="chips">
+          <span class="chip">✨ ${condition}</span>
+          ${l.size ? `<span class="chip">📏 ${l.size}</span>` : ''}
+          <span class="chip">📦 ${(l.deliveryOptions||'').replace(/_/g,' ')}</span>
+        </div>
+        ${l.description ? `<p style="font-size:14px;color:var(--muted);margin-bottom:16px;">${l.description}</p>` : ''}
+        <div class="seller-card">
+          <div class="avatar">👤</div>
+          <div>
+            <div class="name">${seller.name || 'Seller'}</div>
+            <div class="city">📍 ${(seller.city || '').replace(/_/g,' ').replace(/^\w/,c=>c.toUpperCase())}</div>
+          </div>
+          ${seller.ratingAvg ? `<div class="rating">⭐ ${seller.ratingAvg.toFixed(1)}<br><span style="font-size:10px;color:var(--muted)">${seller.ratingCount || 0} reviews</span></div>` : ''}
+        </div>
+      </div>`;
+
+    const acts = document.getElementById('detail-actions');
+    if (l.status === 'active' && l.sellerId !== userId) {
+      acts.innerHTML = `
+        <button class="btn btn-secondary" onclick="showOfferModal()">Make an offer</button>
+        <button class="btn btn-primary" onclick="showBuyModal()">Buy now</button>`;
+    } else if (l.sellerId === userId) {
+      acts.innerHTML = `<div style="flex:1;text-align:center;padding:14px;color:var(--muted);font-size:13px;">This is your listing</div>`;
+    } else {
+      acts.innerHTML = '';
+    }
+  } catch (e) { console.error(e); }
+}
+
+function backToFeed() {
+  document.getElementById('detail-page').style.display = 'none';
+  document.getElementById('feed-page').style.display = 'flex';
+}
+
+function showOfferModal() {
+  if (!currentListing) return;
+  document.getElementById('offer-item-preview').innerHTML = `
+    <div style="width:50px;height:50px;border-radius:10px;background:var(--light);display:flex;align-items:center;justify-content:center;">👜</div>
+    <div><b style="font-size:13px;">${currentListing.title}</b><br><span style="font-size:11px;color:var(--muted);">Listed at AED ${Math.round(currentListing.price)}</span></div>`;
+  document.getElementById('offer-amount').value = '';
+  document.getElementById('offer-modal').classList.add('show');
+}
+
+function showBuyModal() {
+  if (!currentListing) return;
+  document.getElementById('buy-item-preview').innerHTML = `
+    <div style="display:flex;gap:12px;align-items:center;">
+      <div style="width:50px;height:50px;border-radius:10px;background:var(--light);display:flex;align-items:center;justify-content:center;">👜</div>
+      <div><b style="font-size:13px;">${currentListing.title}</b><br><b style="font-size:17px;">AED ${Math.round(currentListing.price)}</b></div>
+    </div>`;
+  document.getElementById('buy-submit-btn').textContent = 'Place order — AED ' + Math.round(currentListing.price);
+  document.getElementById('buy-modal').classList.add('show');
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function updateDelivery() {
+  const v = document.querySelector('input[name=delivery]:checked').value;
+  document.getElementById('address-field').style.display = v === 'courier' ? 'block' : 'none';
+  document.querySelectorAll('#delivery-options label').forEach(l => {
+    l.style.borderColor = l.querySelector('input').checked ? 'var(--accent)' : 'transparent';
+  });
+}
+
+async function submitOffer() {
+  const amount = parseFloat(document.getElementById('offer-amount').value);
+  if (!amount || !currentListing) return;
+  try {
+    await api('POST', '/offers', { listingId: currentListing.id, amount });
+    closeModal('offer-modal');
+    alert('Offer sent!');
+  } catch (e) { alert(e.message); }
+}
+
+async function submitBuy() {
+  if (!currentListing) return;
+  const method = document.querySelector('input[name=delivery]:checked').value;
+  const address = method === 'courier' ? document.getElementById('buy-address').value : null;
+  try {
+    const order = await api('POST', '/orders', {
+      listingId: currentListing.id, offerId: null, deliveryMethod: method, deliveryAddress: address
+    });
+    closeModal('buy-modal');
+    alert('Order created! Go to Orders tab to pay.');
+    switchTab('orders');
+  } catch (e) { alert(e.message); }
+}
+
+async function loadOrders() {
+  try {
+    const orders = await api('GET', '/orders/my');
+    const list = document.getElementById('orders-list');
+    const empty = document.getElementById('orders-empty');
+    if (!orders.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    list.innerHTML = orders.map(o => {
+      const isBuyer = o.buyerId === userId;
+      const role = isBuyer ? '↓ Bought from ' + (o.seller?.name || 'Seller') : '↑ Sold to ' + (o.buyer?.name || 'Buyer');
+      const statusLabel = {
+        pending_payment: 'Awaiting payment', paid_escrow: 'Paid', shipped: 'Shipped',
+        dispute_window: 'Review period', completed: 'Completed', disputed: 'Disputed',
+        refunded: 'Refunded', cancelled: 'Cancelled'
+      }[o.status] || o.status;
+      return `<div class="order-card">
+        <div class="order-thumb">👜</div>
+        <div class="order-info">
+          <div class="title">${o.listing?.title || 'Item'}</div>
+          <div class="sub">${role}</div>
+          <span class="status-pill status-${o.status}">${statusLabel}</span>
+        </div>
+        <div class="order-price">AED ${Math.round(o.finalPrice)}</div>
+      </div>`;
+    }).join('');
+  } catch (e) {}
+}
+
+function filterOrders(type, btn) {
+  document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadOrders();
+}
+
+async function loadProfile() {
+  try {
+    const user = await api('GET', '/auth/me');
+    const reviews = await api('GET', '/reviews/user/' + userId).catch(() => []);
+    document.getElementById('profile-content').innerHTML = `
+      <div class="profile-header">
+        <div class="profile-avatar">👤</div>
+        <div class="profile-name">${user.name}</div>
+        <div class="profile-city">📍 ${(user.city||'').replace(/_/g,' ').replace(/^\w/,c=>c.toUpperCase())}</div>
+        ${user.ratingCount > 0 ? `<div class="profile-rating">⭐ ${user.ratingAvg.toFixed(1)} (${user.ratingCount} reviews)</div>` : ''}
+      </div>
+      ${reviews.length ? `<div style="padding:0 16px;"><h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">Reviews</h3>
+        ${reviews.map(r => `<div style="padding:12px;background:var(--card);border-radius:12px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;">
+            <span>${'⭐'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</span>
+            <span style="font-size:11px;color:var(--muted);">${r.reviewer?.name || 'User'}</span>
+          </div>
+          ${r.comment ? `<p style="font-size:13px;color:var(--muted);margin-top:6px;">${r.comment}</p>` : ''}
+        </div>`).join('')}</div>` : ''}
+      <div style="padding:16px;">
+        <button class="btn btn-secondary" style="width:100%;color:var(--red);" onclick="logout()">Log out</button>
+      </div>`;
+  } catch (e) {}
+}
+
+function logout() {
+  token = null; userId = null;
+  localStorage.clear();
+  showScreen('onboarding');
+}
+
+async function showCreateListing() {
+  if (!allBrands.length) allBrands = await api('GET', '/brands').catch(() => []);
+  if (!allCategories.length) allCategories = await api('GET', '/categories').catch(() => []);
+
+  const catSelect = document.getElementById('cl-category');
+  catSelect.innerHTML = '<option value="">Select category...</option>';
+  allCategories.forEach(c => {
+    (c.children || []).forEach(sub => {
+      catSelect.innerHTML += `<option value="${sub.id}">${c.name} → ${sub.name}</option>`;
+    });
+  });
+
+  const brandSelect = document.getElementById('cl-brand');
+  brandSelect.innerHTML = '<option value="">None / Other</option>';
+  allBrands.forEach(b => { brandSelect.innerHTML += `<option value="${b.id}" data-type="${b.verificationType}">${b.name}</option>`; });
+
+  document.getElementById('cl-verification').style.display = 'none';
+  document.getElementById('create-modal').classList.add('show');
+}
+
+function onBrandChange() {
+  const sel = document.getElementById('cl-brand');
+  const opt = sel.options[sel.selectedIndex];
+  const type = opt?.dataset?.type;
+  document.getElementById('cl-verification').style.display = (type && type !== 'none') ? 'block' : 'none';
+}
+
+function selectCondition(btn, val) {
+  selectedCondition = val;
+  btn.parentElement.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+async function submitListing() {
+  const title = document.getElementById('cl-title').value;
+  const categoryId = document.getElementById('cl-category').value;
+  const brandId = document.getElementById('cl-brand').value || null;
+  const price = parseFloat(document.getElementById('cl-price').value);
+  const desc = document.getElementById('cl-desc').value;
+  const vcode = document.getElementById('cl-vcode').value;
+  if (!title || !categoryId || !price) return alert('Fill in title, category, and price');
+
+  try {
+    await api('POST', '/listings', {
+      title, categoryId, brandId, price, condition: selectedCondition,
+      deliveryOptions: 'both', description: desc || null,
+      verificationCode: vcode || null, verificationPhotoUrl: vcode ? 'https://placeholder.com/v.jpg' : null,
+      photoUrls: ['https://placeholder.com/photo.jpg']
+    });
+    closeModal('create-modal');
+    loadFeed();
+  } catch (e) { alert(e.message); }
+}
+</script>
+</body>
+</html>
