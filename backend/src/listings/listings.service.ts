@@ -40,7 +40,7 @@ export class ListingsService {
   async findOne(id: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id },
-      include: { photos: { orderBy: { sortOrder: 'asc' } }, brand: true, category: true, seller: { select: { id: true, name: true, profilePhotoUrl: true, city: true, ratingAvg: true } } },
+      include: { photos: { orderBy: { sortOrder: 'asc' } }, brand: true, category: true, seller: { select: { id: true, name: true, profilePhotoUrl: true, city: true, ratingAvg: true, ratingCount: true } } },
     });
     if (!listing) throw new NotFoundException('Listing not found');
     return listing;

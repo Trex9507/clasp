@@ -18,108 +18,133 @@ struct OrderDetailView: View {
             if isLoading {
                 ProgressView().padding(.top, 100)
             } else if let order {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Status banner
-                    HStack {
+                VStack(spacing: 20) {
+                    // Status card
+                    VStack(spacing: 10) {
                         Image(systemName: statusIcon)
+                            .font(.system(size: 32))
+                            .foregroundStyle(statusColor)
                         Text(order.statusLabel)
                             .font(.headline)
+                        if order.status == "dispute_window", let deadline = order.disputeDeadlineDate {
+                            Text("Dispute window until \(deadline, style: .relative)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(statusBannerColor.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(20)
+                    .background(statusColor.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
 
-                    // Item info
+                    // Item
                     if let listing = order.listing {
-                        HStack(spacing: 12) {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color(.systemGray5))
+                        HStack(spacing: 14) {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(.systemGray6))
                                 .frame(width: 70, height: 70)
                                 .overlay {
                                     if let photo = listing.photos?.first {
                                         AsyncImage(url: URL(string: photo.url)) { image in
                                             image.resizable().scaledToFill()
                                         } placeholder: {
-                                            Image(systemName: "photo").foregroundStyle(.secondary)
+                                            Image(systemName: "photo").foregroundStyle(.quaternary)
                                         }
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
                                     }
                                 }
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(listing.title).font(.headline)
+                                Text(listing.title).font(.subheadline.bold())
                                 if let brand = listing.brand {
-                                    Text(brand.name).font(.subheadline).foregroundStyle(.secondary)
+                                    Text(brand.name.uppercased())
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                        .tracking(0.5)
                                 }
-                                Text("AED \(Int(order.finalPrice))")
-                                    .font(.title3.bold())
+                                PriceTag(amount: order.finalPrice, font: .title3)
                             }
+                            Spacer()
                         }
+                        .padding(16)
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
-
-                    Divider()
 
                     // Parties
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(spacing: 12) {
                         if let buyer = order.buyer {
-                            Label("\(buyer.name) (Buyer)", systemImage: "person.fill")
-                                .font(.subheadline)
+                            partyRow(avatar: nil, name: buyer.name, role: "Buyer", city: buyer.city)
                         }
                         if let seller = order.seller {
-                            Label("\(seller.name) (Seller)", systemImage: "person.fill")
-                                .font(.subheadline)
+                            partyRow(avatar: nil, name: seller.name, role: "Seller", city: seller.city)
                         }
                     }
+                    .padding(16)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
 
-                    // Delivery info
-                    VStack(alignment: .leading, spacing: 4) {
-                        Label(order.deliveryMethod == "hand_off" ? "Hand-off" : "Courier", systemImage: "shippingbox")
-                            .font(.subheadline)
-                        if let tracking = order.trackingNumber {
-                            Label("Tracking: \(tracking)", systemImage: "number")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    // Delivery
+                    HStack(spacing: 12) {
+                        Image(systemName: order.deliveryMethod == "hand_off" ? "person.2.fill" : "shippingbox.fill")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 36, height: 36)
+                            .background(Color(.tertiarySystemFill))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(order.deliveryMethod == "hand_off" ? "Hand-off" : "Courier")
+                                .font(.subheadline.bold())
+                            if let tracking = order.trackingNumber {
+                                Text("Tracking: \(tracking)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
+                        Spacer()
                     }
+                    .padding(16)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
 
                     // Disputes
                     if let disputes = order.disputes, !disputes.isEmpty {
-                        Divider()
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Disputes").font(.headline)
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Disputes").font(.subheadline.bold())
                             ForEach(disputes) { dispute in
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: 6) {
                                     HStack {
-                                        Text(dispute.reasonLabel).font(.subheadline.bold())
+                                        Text(dispute.reasonLabel)
+                                            .font(.caption.bold())
                                         Spacer()
-                                        Text(dispute.statusLabel)
-                                            .font(.caption)
-                                            .foregroundStyle(.orange)
+                                        StatusPill(label: dispute.statusLabel, color: .orange)
                                     }
                                     if let desc = dispute.description {
                                         Text(desc).font(.caption).foregroundStyle(.secondary)
                                     }
                                 }
-                                .padding(10)
-                                .background(Color(.systemGray6))
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .padding(12)
+                                .background(Color(.tertiarySystemFill))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
                             }
                         }
+                        .padding(16)
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
 
                     if let errorMessage {
-                        Text(errorMessage)
-                            .font(.caption)
-                            .foregroundStyle(.red)
+                        Text(errorMessage).font(.caption).foregroundStyle(.red)
                     }
 
                     // Actions
                     actionButtons
                 }
-                .padding()
+                .padding(16)
             }
         }
+        .background(Color(.systemGroupedBackground))
         .navigationTitle("Order")
         .navigationBarTitleDisplayMode(.inline)
         .task { await loadOrder() }
@@ -136,48 +161,65 @@ struct OrderDetailView: View {
 
     @ViewBuilder
     private var actionButtons: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             if isBuyer && order?.status == "pending_payment" {
                 Button("Pay Now — AED \(Int(order?.finalPrice ?? 0))") {
                     Task { await pay() }
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .frame(maxWidth: .infinity)
+                .buttonStyle(PrimaryButtonStyle())
             }
 
             if isSeller && order?.status == "paid_escrow" {
                 Button("Mark as Shipped") { showShipSheet = true }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity)
+                    .buttonStyle(PrimaryButtonStyle())
             }
 
             if isBuyer && order?.status == "shipped" {
                 Button("Confirm Delivery") {
                     Task { await confirmDelivery() }
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .frame(maxWidth: .infinity)
+                .buttonStyle(PrimaryButtonStyle())
             }
 
             if isBuyer && order?.status == "dispute_window" {
-                Button("Open Dispute") { showDisputeSheet = true }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity)
+                Button { showDisputeSheet = true } label: {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle")
+                        Text("Open Dispute")
+                    }
+                }
+                .buttonStyle(SecondaryButtonStyle())
             }
 
             if order?.status == "completed" {
-                Button("Leave a Review") { showReviewSheet = true }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity)
+                Button { showReviewSheet = true } label: {
+                    HStack {
+                        Image(systemName: "star")
+                        Text("Leave a Review")
+                    }
+                }
+                .buttonStyle(SecondaryButtonStyle())
             }
         }
-        .padding(.top)
+    }
+
+    private func partyRow(avatar: String?, name: String, role: String, city: String?) -> some View {
+        HStack(spacing: 12) {
+            AvatarView(url: avatar, size: 36)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(name).font(.subheadline.bold())
+                Text(role).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            if let city {
+                HStack(spacing: 3) {
+                    Image(systemName: "mappin")
+                    Text(city.replacingOccurrences(of: "_", with: " ").capitalized)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+        }
     }
 
     private var statusIcon: String {
@@ -186,11 +228,12 @@ struct OrderDetailView: View {
         case "disputed", "refunded": return "exclamationmark.triangle.fill"
         case "shipped": return "shippingbox.fill"
         case "paid_escrow": return "creditcard.fill"
+        case "dispute_window": return "clock.badge.checkmark.fill"
         default: return "clock.fill"
         }
     }
 
-    private var statusBannerColor: Color {
+    private var statusColor: Color {
         switch order?.status {
         case "completed": return .green
         case "disputed", "refunded", "cancelled": return .red
@@ -199,9 +242,7 @@ struct OrderDetailView: View {
     }
 
     private func loadOrder() async {
-        do {
-            order = try await APIClient.shared.getOrder(id: orderId)
-        } catch {}
+        do { order = try await APIClient.shared.getOrder(id: orderId) } catch {}
         isLoading = false
     }
 
@@ -215,8 +256,7 @@ struct OrderDetailView: View {
     }
 
     private func confirmDelivery() async {
-        do {
-            order = try await APIClient.shared.confirmDelivery(orderId: orderId)
-        } catch { errorMessage = error.localizedDescription }
+        do { order = try await APIClient.shared.confirmDelivery(orderId: orderId) }
+        catch { errorMessage = error.localizedDescription }
     }
 }

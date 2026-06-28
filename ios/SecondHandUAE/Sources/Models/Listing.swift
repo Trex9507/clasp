@@ -33,7 +33,8 @@ struct ListingSeller: Codable {
     let name: String
     let profilePhotoUrl: String?
     let city: String
-    let ratingAvg: Double
+    let ratingAvg: Double?
+    let ratingCount: Int?
 }
 
 struct ListingFeedResponse: Codable {

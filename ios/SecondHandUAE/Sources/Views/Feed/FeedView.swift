@@ -1,34 +1,64 @@
 import SwiftUI
 
 struct FeedView: View {
+    @Binding var showCreateListing: Bool
+
     @State private var listings: [Listing] = []
     @State private var verifiedOnly = false
     @State private var searchText = ""
     @State private var isLoading = false
-    @State private var showCreateListing = false
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 14),
+        GridItem(.flexible(), spacing: 14),
+    ]
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Verified filter toggle
-                HStack {
-                    Toggle(isOn: $verifiedOnly) {
-                        Label("Verified only", systemImage: "checkmark.seal.fill")
-                            .font(.subheadline)
-                    }
-                    .toggleStyle(.switch)
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                }
-                .background(Color(.systemBackground))
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Verified filter
+                    HStack(spacing: 8) {
+                        Button {
+                            verifiedOnly.toggle()
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: verifiedOnly ? "checkmark.seal.fill" : "checkmark.seal")
+                                    .font(.caption)
+                                Text("Verified only")
+                                    .font(.caption.weight(.medium))
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(verifiedOnly ? Color.blue : Color(.tertiarySystemFill))
+                            .foregroundStyle(verifiedOnly ? .white : .primary)
+                            .clipShape(Capsule())
+                        }
 
-                if isLoading && listings.isEmpty {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                } else {
-                    ScrollView {
-                        LazyVGrid(columns: [.init(.flexible()), .init(.flexible())], spacing: 12) {
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+
+                    if isLoading && listings.isEmpty {
+                        VStack {
+                            Spacer(minLength: 120)
+                            ProgressView()
+                            Spacer(minLength: 120)
+                        }
+                    } else if listings.isEmpty {
+                        VStack(spacing: 12) {
+                            Spacer(minLength: 80)
+                            Image(systemName: "tray")
+                                .font(.system(size: 40))
+                                .foregroundStyle(.quaternary)
+                            Text("No items found")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Spacer(minLength: 80)
+                        }
+                    } else {
+                        LazyVGrid(columns: columns, spacing: 18) {
                             ForEach(listings) { listing in
                                 NavigationLink(destination: ListingDetailView(listingId: listing.id)) {
                                     ListingCardView(listing: listing)
@@ -36,7 +66,8 @@ struct FeedView: View {
                                 .buttonStyle(.plain)
                             }
                         }
-                        .padding()
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 24)
                     }
                 }
             }
@@ -44,19 +75,16 @@ struct FeedView: View {
             .searchable(text: $searchText, prompt: "Search items...")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showCreateListing = true
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
+                    Button { showCreateListing = true } label: {
+                        Image(systemName: "plus")
+                            .fontWeight(.semibold)
                     }
                 }
-            }
-            .sheet(isPresented: $showCreateListing) {
-                CreateListingView()
             }
             .task { await loadListings() }
             .onChange(of: verifiedOnly) { _, _ in Task { await loadListings() } }
             .onChange(of: searchText) { _, _ in Task { await loadListings() } }
+            .refreshable { await loadListings() }
         }
     }
 
@@ -68,9 +96,7 @@ struct FeedView: View {
                 query: searchText.isEmpty ? nil : searchText
             )
             listings = response.items
-        } catch {
-            // Silently fail for MVP — in production show error
-        }
+        } catch {}
         isLoading = false
     }
 }

@@ -11,31 +11,69 @@ struct MakeOfferView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    Text(listing.title).font(.headline)
-                    Text("Listed price: AED \(Int(listing.price))")
-                        .foregroundStyle(.secondary)
-                }
+            VStack(spacing: 24) {
+                // Item preview
+                HStack(spacing: 14) {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(.systemGray6))
+                        .frame(width: 64, height: 64)
+                        .overlay {
+                            if let photo = listing.photos?.first {
+                                AsyncImage(url: URL(string: photo.url)) { image in
+                                    image.resizable().scaledToFill()
+                                } placeholder: {
+                                    Color(.systemGray5)
+                                }
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                            }
+                        }
 
-                Section("Your Offer") {
-                    HStack {
-                        Text("AED")
-                        TextField("Amount", text: $amount)
-                            .keyboardType(.numberPad)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(listing.title).font(.subheadline.bold()).lineLimit(1)
+                        Text("Listed at AED \(Int(listing.price))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
+                    Spacer()
+                }
+                .padding(16)
+                .background(Color(.tertiarySystemFill))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+
+                // Offer input
+                VStack(spacing: 8) {
+                    Text("Your Offer")
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    HStack(spacing: 8) {
+                        Text("AED")
+                            .font(.title3.weight(.medium))
+                            .foregroundStyle(.secondary)
+                        TextField("0", text: $amount)
+                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.leading)
+                    }
+                    .padding(16)
+                    .background(Color(.tertiarySystemFill))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
 
                 if let errorMessage {
-                    Section { Text(errorMessage).foregroundStyle(.red).font(.caption) }
+                    Text(errorMessage)
+                        .font(.caption)
+                        .foregroundStyle(.red)
                 }
 
-                Section {
-                    Button("Send Offer") { submit() }
-                        .disabled(amount.isEmpty || isSubmitting)
-                        .frame(maxWidth: .infinity)
-                }
+                Spacer()
+
+                Button("Send Offer") { submit() }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .disabled(amount.isEmpty || isSubmitting)
             }
+            .padding(24)
             .navigationTitle("Make an Offer")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

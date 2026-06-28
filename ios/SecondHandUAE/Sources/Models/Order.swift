@@ -42,6 +42,13 @@ struct CreateOrderRequest: Codable {
 }
 
 extension Order {
+    var disputeDeadlineDate: Date? {
+        guard let str = disputeDeadlineAt else { return nil }
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f.date(from: str) ?? ISO8601DateFormatter().date(from: str)
+    }
+
     var statusLabel: String {
         switch status {
         case "pending_payment": return "Awaiting Payment"

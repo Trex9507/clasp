@@ -41,3 +41,4 @@ ios/*.xcworkspace
 
 # Prisma
 backend/prisma/*.db
+ios/SecondHandUAE/.build/

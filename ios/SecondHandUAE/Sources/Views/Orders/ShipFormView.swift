@@ -11,28 +11,42 @@ struct ShipFormView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Tracking Number (optional)") {
-                    TextField("e.g. TRACK123456", text: $trackingNumber)
-                        .autocapitalization(.allCharacters)
-                }
-
-                Section {
-                    Text("If using a courier, enter the tracking number. For hand-off, you can leave this empty.")
+            VStack(spacing: 24) {
+                VStack(spacing: 12) {
+                    Image(systemName: "shippingbox.fill")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.blue)
+                    Text("Ship this order")
+                        .font(.title3.bold())
+                    Text("If using a courier, enter the tracking number.\nFor hand-off, you can skip this.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top, 20)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Tracking Number (optional)")
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                    TextField("e.g. TRACK123456", text: $trackingNumber)
+                        .autocapitalization(.allCharacters)
+                        .padding(14)
+                        .background(Color(.tertiarySystemFill))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
                 if let errorMessage {
-                    Section { Text(errorMessage).foregroundStyle(.red).font(.caption) }
+                    Text(errorMessage).font(.caption).foregroundStyle(.red)
                 }
 
-                Section {
-                    Button("Confirm Shipment") { submit() }
-                        .disabled(isSubmitting)
-                        .frame(maxWidth: .infinity)
-                }
+                Spacer()
+
+                Button("Confirm Shipment") { submit() }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .disabled(isSubmitting)
             }
+            .padding(24)
             .navigationTitle("Ship Order")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

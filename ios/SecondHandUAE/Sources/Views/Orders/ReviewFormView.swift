@@ -12,35 +12,49 @@ struct ReviewFormView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Rating") {
-                    HStack(spacing: 8) {
+            VStack(spacing: 24) {
+                VStack(spacing: 12) {
+                    Text("How was your experience?")
+                        .font(.title3.bold())
+
+                    HStack(spacing: 12) {
                         ForEach(1...5, id: \.self) { star in
                             Image(systemName: star <= rating ? "star.fill" : "star")
-                                .font(.title2)
-                                .foregroundStyle(star <= rating ? .yellow : .gray)
-                                .onTapGesture { rating = star }
+                                .font(.system(size: 36))
+                                .foregroundStyle(star <= rating ? .yellow : Color(.systemGray4))
+                                .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { rating = star } }
                         }
                     }
-                    .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
-                }
 
-                Section("Comment (optional)") {
-                    TextField("How was your experience?", text: $comment, axis: .vertical)
+                    Text(ratingLabel)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.top, 20)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Comment (optional)")
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                    TextField("Share your thoughts...", text: $comment, axis: .vertical)
                         .lineLimit(3...6)
+                        .padding(14)
+                        .background(Color(.tertiarySystemFill))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
 
                 if let errorMessage {
-                    Section { Text(errorMessage).foregroundStyle(.red).font(.caption) }
+                    Text(errorMessage).font(.caption).foregroundStyle(.red)
                 }
 
-                Section {
-                    Button("Submit Review") { submit() }
-                        .disabled(isSubmitting)
-                        .frame(maxWidth: .infinity)
-                }
+                Spacer()
+
+                Button("Submit Review") { submit() }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .disabled(isSubmitting)
             }
+            .padding(24)
             .navigationTitle("Leave a Review")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -48,6 +62,17 @@ struct ReviewFormView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+        }
+    }
+
+    private var ratingLabel: String {
+        switch rating {
+        case 1: return "Terrible"
+        case 2: return "Poor"
+        case 3: return "Okay"
+        case 4: return "Good"
+        case 5: return "Excellent"
+        default: return ""
         }
     }
 

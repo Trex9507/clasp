@@ -4,7 +4,6 @@ import PhotosUI
 struct CreateListingView: View {
     @Environment(\.dismiss) private var dismiss
 
-    // Form state
     @State private var title = ""
     @State private var description = ""
     @State private var selectedCategory: Category?
@@ -15,17 +14,14 @@ struct CreateListingView: View {
     @State private var price = ""
     @State private var deliveryOptions = "both"
 
-    // Photos
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var photoImages: [UIImage] = []
 
-    // Verification
     @State private var verificationCode = ""
     @State private var wantsVerification = true
     @State private var verificationPhotoItem: PhotosPickerItem?
     @State private var verificationImage: UIImage?
 
-    // Data
     @State private var brands: [Brand] = []
     @State private var categories: [Category] = []
     @State private var isLoading = false
@@ -53,156 +49,242 @@ struct CreateListingView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                // Photos
-                Section("Photos (min 1, max 8)") {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(photoImages.indices, id: \.self) { i in
-                                Image(uiImage: photoImages[i])
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 80, height: 80)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                            }
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Photos section
+                    VStack(alignment: .leading, spacing: 10) {
+                        sectionLabel("Photos", subtitle: "Min 1, max 8")
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(photoImages.indices, id: \.self) { i in
+                                    ZStack(alignment: .topTrailing) {
+                                        Image(uiImage: photoImages[i])
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 90, height: 90)
+                                            .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                            if photoImages.count < 8 {
-                                PhotosPicker(selection: $selectedPhotos, maxSelectionCount: 8 - photoImages.count, matching: .images) {
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color(.systemGray5))
-                                        .frame(width: 80, height: 80)
-                                        .overlay {
-                                            Image(systemName: "plus.circle.fill")
-                                                .font(.title2)
-                                                .foregroundStyle(.secondary)
+                                        Button {
+                                            photoImages.remove(at: i)
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.body)
+                                                .foregroundStyle(.white)
+                                                .shadow(radius: 2)
                                         }
+                                        .offset(x: 6, y: -6)
+                                    }
+                                }
+
+                                if photoImages.count < 8 {
+                                    PhotosPicker(selection: $selectedPhotos, maxSelectionCount: 8 - photoImages.count, matching: .images) {
+                                        VStack(spacing: 6) {
+                                            Image(systemName: "plus")
+                                                .font(.title3)
+                                            Text("Add")
+                                                .font(.caption2)
+                                        }
+                                        .foregroundStyle(.secondary)
+                                        .frame(width: 90, height: 90)
+                                        .background(Color(.tertiarySystemFill))
+                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [6]))
+                                                .foregroundStyle(Color(.systemGray4))
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                // Category
-                Section("Category") {
-                    Picker("Category", selection: $selectedCategory) {
-                        Text("Select...").tag(nil as Category?)
-                        ForEach(categories) { cat in
-                            Text(cat.name).tag(cat as Category?)
-                        }
-                    }
-
-                    if let parent = selectedCategory, let children = parent.children, !children.isEmpty {
-                        Picker("Subcategory", selection: $selectedSubcategory) {
-                            Text("Select...").tag(nil as Category?)
-                            ForEach(children) { sub in
-                                Text(sub.name).tag(sub as Category?)
+                    // Category
+                    VStack(alignment: .leading, spacing: 10) {
+                        sectionLabel("Category")
+                        Picker("Category", selection: $selectedCategory) {
+                            Text("Select category...").tag(nil as Category?)
+                            ForEach(categories) { cat in
+                                Text(cat.name).tag(cat as Category?)
                             }
                         }
-                    }
-                }
+                        .pickerStyle(.menu)
+                        .padding(14)
+                        .background(Color(.tertiarySystemFill))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                // Brand
-                Section("Brand") {
-                    Picker("Brand", selection: $selectedBrand) {
-                        Text("None / Other").tag(nil as Brand?)
-                        ForEach(brands) { brand in
-                            Text(brand.name).tag(brand as Brand?)
+                        if let parent = selectedCategory, let children = parent.children, !children.isEmpty {
+                            Picker("Subcategory", selection: $selectedSubcategory) {
+                                Text("Select subcategory...").tag(nil as Category?)
+                                ForEach(children) { sub in
+                                    Text(sub.name).tag(sub as Category?)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .padding(14)
+                            .background(Color(.tertiarySystemFill))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                     }
-                }
 
-                // Verification step (conditional)
-                if brandRequiresVerification {
-                    Section {
-                        Toggle("I want to verify this item", isOn: $wantsVerification)
+                    // Brand
+                    VStack(alignment: .leading, spacing: 10) {
+                        sectionLabel("Brand")
+                        Picker("Brand", selection: $selectedBrand) {
+                            Text("None / Other").tag(nil as Brand?)
+                            ForEach(brands) { brand in
+                                Text(brand.name).tag(brand as Brand?)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .padding(14)
+                        .background(Color(.tertiarySystemFill))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
 
-                        if wantsVerification {
-                            if let instructions = selectedBrand?.verificationInstructions {
-                                Text(instructions)
+                    // Verification
+                    if brandRequiresVerification {
+                        VStack(alignment: .leading, spacing: 12) {
+                            sectionLabel("Verification", subtitle: "Optional — adds a Verified badge")
+
+                            Toggle("I want to verify this item", isOn: $wantsVerification)
+                                .tint(.blue)
+
+                            if wantsVerification {
+                                if let instructions = selectedBrand?.verificationInstructions {
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Image(systemName: "info.circle")
+                                            .foregroundStyle(.blue)
+                                            .font(.caption)
+                                        Text(instructions)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+
+                                TextField("Verification code", text: $verificationCode)
+                                    .autocapitalization(.none)
+                                    .padding(14)
+                                    .background(Color(.tertiarySystemFill))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                                PhotosPicker(selection: $verificationPhotoItem, matching: .images) {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: verificationImage != nil ? "checkmark.circle.fill" : "camera")
+                                            .foregroundStyle(verificationImage != nil ? .green : .secondary)
+                                        Text(verificationImage != nil ? "Verification photo added" : "Upload code/tag photo")
+                                            .font(.subheadline)
+                                            .foregroundStyle(verificationImage != nil ? .primary : .secondary)
+                                        Spacer()
+                                    }
+                                    .padding(14)
+                                    .background(Color(.tertiarySystemFill))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: "exclamationmark.triangle")
+                                        .foregroundStyle(.orange)
+                                        .font(.caption)
+                                    Text("The \"Verified\" badge means the seller provided a code in the expected format plus a photo. It does not certify authenticity.")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(12)
+                                .background(Color.orange.opacity(0.06))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                            } else {
+                                Text("Skipping verification — the item will be listed as \"Unverified\".")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
+                        }
+                        .padding(16)
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
 
-                            TextField("Verification code", text: $verificationCode)
-                                .autocapitalization(.none)
+                    // Details
+                    VStack(alignment: .leading, spacing: 10) {
+                        sectionLabel("Details")
+                        fieldInput("Title", text: $title)
+                        TextField("Description (optional)", text: $description, axis: .vertical)
+                            .lineLimit(3...6)
+                            .padding(14)
+                            .background(Color(.tertiarySystemFill))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        fieldInput("Size (optional)", text: $size)
 
-                            PhotosPicker(selection: $verificationPhotoItem, matching: .images) {
-                                if verificationImage != nil {
-                                    Label("Photo added", systemImage: "checkmark.circle.fill")
-                                        .foregroundStyle(.green)
-                                } else {
-                                    Label("Upload code/tag photo", systemImage: "camera")
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Condition").font(.caption.bold()).foregroundStyle(.secondary)
+                            HStack(spacing: 6) {
+                                ForEach(conditions, id: \.0) { c in
+                                    Button {
+                                        condition = c.0
+                                    } label: {
+                                        Text(c.1)
+                                            .font(.caption2.weight(.medium))
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 8)
+                                            .background(condition == c.0 ? Color.primary : Color(.tertiarySystemFill))
+                                            .foregroundStyle(condition == c.0 ? Color(.systemBackground) : .primary)
+                                            .clipShape(Capsule())
+                                    }
                                 }
                             }
-
-                            Text("The \"Verified\" badge means the seller provided a code in the expected format plus a photo. It does not certify authenticity. The platform assumes no responsibility for the authenticity of items.")
-                                .font(.caption2)
-                                .foregroundStyle(.orange)
-                        }
-                    } header: {
-                        Text("Verification")
-                    } footer: {
-                        if !wantsVerification {
-                            Text("Skipping verification — the item will be listed as \"Unverified\".")
                         }
                     }
-                }
 
-                // Details
-                Section("Details") {
-                    TextField("Title", text: $title)
-                    TextField("Description (optional)", text: $description, axis: .vertical)
-                        .lineLimit(3...6)
-                    TextField("Size (optional)", text: $size)
-                    Picker("Condition", selection: $condition) {
-                        ForEach(conditions, id: \.0) { c in
-                            Text(c.1).tag(c.0)
+                    // Pricing & delivery
+                    VStack(alignment: .leading, spacing: 10) {
+                        sectionLabel("Pricing & Delivery")
+                        HStack(spacing: 8) {
+                            Text("AED")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.secondary)
+                            TextField("Price", text: $price)
+                                .font(.title3.bold())
+                                .keyboardType(.decimalPad)
                         }
-                    }
-                }
+                        .padding(14)
+                        .background(Color(.tertiarySystemFill))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                // Pricing & delivery
-                Section("Pricing & Delivery") {
-                    HStack {
-                        Text("AED")
-                        TextField("Price", text: $price)
-                            .keyboardType(.decimalPad)
-                    }
-                    Picker("Delivery", selection: $deliveryOptions) {
-                        ForEach(deliveryChoices, id: \.0) { d in
-                            Text(d.1).tag(d.0)
+                        Picker("Delivery", selection: $deliveryOptions) {
+                            ForEach(deliveryChoices, id: \.0) { d in
+                                Text(d.1).tag(d.0)
+                            }
                         }
+                        .pickerStyle(.segmented)
                     }
-                }
 
-                if let errorMessage {
-                    Section {
-                        Text(errorMessage)
-                            .foregroundStyle(.red)
-                            .font(.caption)
+                    if let errorMessage {
+                        Text(errorMessage).font(.caption).foregroundStyle(.red)
                     }
-                }
 
-                Section {
+                    // Publish button
                     Button {
                         submit()
                     } label: {
                         if isSubmitting {
                             VStack(spacing: 4) {
-                                ProgressView().frame(maxWidth: .infinity)
+                                ProgressView().tint(.white)
                                 if !uploadProgress.isEmpty {
                                     Text(uploadProgress)
                                         .font(.caption2)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(.white.opacity(0.7))
                                 }
                             }
                         } else {
-                            Text("Publish Listing").frame(maxWidth: .infinity)
+                            Text("Publish Listing")
                         }
                     }
+                    .buttonStyle(PrimaryButtonStyle())
                     .disabled(title.isEmpty || selectedSubcategory == nil || price.isEmpty || photoImages.isEmpty || isSubmitting)
                 }
+                .padding(20)
             }
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("Sell an Item")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -211,13 +293,26 @@ struct CreateListingView: View {
                 }
             }
             .task { await loadData() }
-            .onChange(of: selectedPhotos) { _, items in
-                Task { await loadImages(items) }
-            }
-            .onChange(of: verificationPhotoItem) { _, item in
-                Task { await loadVerificationImage(item) }
+            .onChange(of: selectedPhotos) { _, items in Task { await loadImages(items) } }
+            .onChange(of: verificationPhotoItem) { _, item in Task { await loadVerificationImage(item) } }
+        }
+    }
+
+    @ViewBuilder
+    private func sectionLabel(_ title: String, subtitle: String? = nil) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(title).font(.subheadline.bold())
+            if let subtitle {
+                Text(subtitle).font(.caption).foregroundStyle(.secondary)
             }
         }
+    }
+
+    private func fieldInput(_ placeholder: String, text: Binding<String>) -> some View {
+        TextField(placeholder, text: text)
+            .padding(14)
+            .background(Color(.tertiarySystemFill))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private func loadImages(_ items: [PhotosPickerItem]) async {
@@ -260,7 +355,6 @@ struct CreateListingView: View {
 
         Task {
             do {
-                // Upload listing photos
                 uploadProgress = "Uploading photos..."
                 var photoUrls: [String] = []
                 for (i, image) in photoImages.enumerated() {
@@ -270,7 +364,6 @@ struct CreateListingView: View {
                     photoUrls.append(url)
                 }
 
-                // Upload verification photo if needed
                 var verificationPhotoUrl: String?
                 if brandRequiresVerification && wantsVerification && !verificationCode.isEmpty {
                     if let vImage = verificationImage, let data = vImage.jpegData(compressionQuality: 0.8) {
