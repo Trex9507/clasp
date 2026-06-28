@@ -9,6 +9,7 @@ struct BuyNowView: View {
     @State private var isSubmitting = false
     @State private var errorMessage: String?
     @State private var createdOrder: Order?
+    @State private var paymentUrl: URL?
 
     let methods = [
         ("hand_off", "Hand-off (meet in person)"),
@@ -53,8 +54,16 @@ struct BuyNowView: View {
                             Text("Order #\(order.id.prefix(8))...")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            Text("Go to Orders tab to pay.")
-                                .font(.subheadline)
+
+                            if isSubmitting {
+                                ProgressView("Initiating payment...")
+                            } else if paymentUrl != nil {
+                                Text("Payment page opened in browser.")
+                                    .font(.subheadline)
+                            } else {
+                                Text("Go to Orders tab to pay.")
+                                    .font(.subheadline)
+                            }
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -82,7 +91,7 @@ struct BuyNowView: View {
         errorMessage = nil
         Task {
             do {
-                createdOrder = try await APIClient.shared.createOrder(
+                let order = try await APIClient.shared.createOrder(
                     CreateOrderRequest(
                         listingId: listing.id,
                         offerId: nil,
@@ -90,6 +99,12 @@ struct BuyNowView: View {
                         deliveryAddress: deliveryMethod == "courier" ? deliveryAddress : nil
                     )
                 )
+                createdOrder = order
+                let payment = try await APIClient.shared.initiatePayment(orderId: order.id)
+                if let url = URL(string: payment.paymentUrl) {
+                    paymentUrl = url
+                    await MainActor.run { UIApplication.shared.open(url) }
+                }
             } catch {
                 errorMessage = error.localizedDescription
             }

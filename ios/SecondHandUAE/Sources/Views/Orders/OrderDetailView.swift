@@ -207,7 +207,10 @@ struct OrderDetailView: View {
 
     private func pay() async {
         do {
-            order = try await APIClient.shared.payOrder(id: orderId)
+            let payment = try await APIClient.shared.initiatePayment(orderId: orderId)
+            if let url = URL(string: payment.paymentUrl) {
+                await MainActor.run { UIApplication.shared.open(url) }
+            }
         } catch { errorMessage = error.localizedDescription }
     }
 
