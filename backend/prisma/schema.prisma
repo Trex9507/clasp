@@ -66,6 +66,7 @@ model User {
   createdAt        DateTime @default(now()) @map("created_at")
 
   listings Listing[]
+  offers   Offer[]
 
   @@map("users")
 }
@@ -115,6 +116,7 @@ model Listing {
   category Category @relation(fields: [categoryId], references: [id])
   brand    Brand?   @relation(fields: [brandId], references: [id])
   photos   ListingPhoto[]
+  offers   Offer[]
 
   @@map("listings")
 }
@@ -128,4 +130,27 @@ model ListingPhoto {
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
   @@map("listing_photos")
+}
+
+enum OfferStatus {
+  pending
+  accepted
+  rejected
+  countered
+  expired
+}
+
+model Offer {
+  id        String      @id @default(uuid())
+  listingId String      @map("listing_id")
+  buyerId   String      @map("buyer_id")
+  amount    Float
+  status    OfferStatus @default(pending)
+  expiresAt DateTime    @map("expires_at")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  listing Listing @relation(fields: [listingId], references: [id])
+  buyer   User    @relation(fields: [buyerId], references: [id])
+
+  @@map("offers")
 }

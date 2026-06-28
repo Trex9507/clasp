@@ -192,4 +192,83 @@ describe('API (e2e)', () => {
       expect(res.body.status).toBe('removed');
     });
   });
+
+  describe('Offers', () => {
+    let sellerToken: string;
+    let buyerToken: string;
+    let listingId: string;
+    let offerId: string;
+
+    beforeAll(async () => {
+      // Create seller + listing
+      const sellerRes = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: `seller-offer-${Date.now()}@test.com`, password: 'test123', name: 'Seller', city: 'dubai' });
+      sellerToken = sellerRes.body.accessToken;
+
+      const brands = await request(app.getHttpServer()).get('/brands');
+      const nikeId = brands.body.find((b: any) => b.name === 'Nike').id;
+
+      const listingRes = await request(app.getHttpServer())
+        .post('/listings')
+        .set('Authorization', `Bearer ${sellerToken}`)
+        .send({ title: 'Offer Test Item', categoryId: 'men-shoes', brandId: nikeId, condition: 'good', price: 1000, deliveryOptions: 'both' });
+      listingId = listingRes.body.id;
+
+      // Create buyer
+      const buyerRes = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: `buyer-offer-${Date.now()}@test.com`, password: 'test123', name: 'Buyer', city: 'abu_dhabi' });
+      buyerToken = buyerRes.body.accessToken;
+    });
+
+    it('POST /offers — should create an offer', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/offers')
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .send({ listingId, amount: 800 })
+        .expect(201);
+
+      expect(res.body.amount).toBe(800);
+      expect(res.body.status).toBe('pending');
+      offerId = res.body.id;
+    });
+
+    it('POST /offers — seller cannot offer on own listing', async () => {
+      await request(app.getHttpServer())
+        .post('/offers')
+        .set('Authorization', `Bearer ${sellerToken}`)
+        .send({ listingId, amount: 500 })
+        .expect(400);
+    });
+
+    it('GET /offers/my — should return buyer offers', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/offers/my')
+        .set('Authorization', `Bearer ${buyerToken}`)
+        .expect(200);
+
+      expect(res.body.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('PATCH /offers/:id/respond — seller can counter', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/offers/${offerId}/respond`)
+        .set('Authorization', `Bearer ${sellerToken}`)
+        .send({ action: 'countered', counterAmount: 900 })
+        .expect(200);
+
+      expect(res.body.amount).toBe(900);
+      expect(res.body.status).toBe('pending');
+    });
+
+    it('GET /offers/listing/:id — should list offers for listing', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/offers/listing/${listingId}`)
+        .set('Authorization', `Bearer ${sellerToken}`)
+        .expect(200);
+
+      expect(res.body.length).toBeGreaterThanOrEqual(1);
+    });
+  });
 });
