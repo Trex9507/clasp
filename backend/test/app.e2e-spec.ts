@@ -53,48 +53,82 @@ describe('API (e2e)', () => {
     });
   });
 
-  describe('POST /users', () => {
-    it('should create a user', () => {
-      const email = `e2e-${Date.now()}@test.com`;
-      return request(app.getHttpServer())
-        .post('/users')
-        .send({ email, password: 'test123', name: 'E2E User', city: 'dubai' })
-        .expect(201)
-        .expect((res) => {
-          expect(res.body.id).toBeDefined();
-          expect(res.body.email).toBe(email);
-        });
+  describe('Auth', () => {
+    const email = `auth-e2e-${Date.now()}@test.com`;
+    let accessToken: string;
+
+    it('POST /auth/register — should register and return token', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email, password: 'test123', name: 'Auth User', city: 'dubai' })
+        .expect(201);
+
+      expect(res.body.accessToken).toBeDefined();
+      expect(res.body.user.email).toBe(email);
+      accessToken = res.body.accessToken;
     });
 
-    it('should reject invalid input', () => {
-      return request(app.getHttpServer())
-        .post('/users')
-        .send({ email: 'not-an-email' })
-        .expect(400);
+    it('POST /auth/login — should login and return token', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email, password: 'test123' })
+        .expect(201);
+
+      expect(res.body.accessToken).toBeDefined();
+      accessToken = res.body.accessToken;
+    });
+
+    it('POST /auth/login — should reject wrong password', async () => {
+      await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email, password: 'wrongpass' })
+        .expect(401);
+    });
+
+    it('GET /auth/me — should return profile with valid token', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(res.body.email).toBe(email);
+    });
+
+    it('GET /auth/me — should reject without token', async () => {
+      await request(app.getHttpServer())
+        .get('/auth/me')
+        .expect(401);
     });
   });
 
-  describe('Listings', () => {
-    let userId: string;
+  describe('Listings (authenticated)', () => {
+    let accessToken: string;
     let nikeId: string;
     let listingId: string;
 
     beforeAll(async () => {
       const email = `listing-e2e-${Date.now()}@test.com`;
       const res = await request(app.getHttpServer())
-        .post('/users')
+        .post('/auth/register')
         .send({ email, password: 'test123', name: 'Seller', city: 'dubai' });
-      userId = res.body.id;
+      accessToken = res.body.accessToken;
 
       const brands = await request(app.getHttpServer()).get('/brands');
       nikeId = brands.body.find((b: any) => b.name === 'Nike').id;
     });
 
-    it('POST /listings — should create a verified listing', async () => {
+    it('POST /listings — should reject without auth', async () => {
+      await request(app.getHttpServer())
+        .post('/listings')
+        .send({ title: 'Test', categoryId: 'men-shoes', condition: 'good', price: 100, deliveryOptions: 'both' })
+        .expect(401);
+    });
+
+    it('POST /listings — should create a verified listing with auth', async () => {
       const res = await request(app.getHttpServer())
         .post('/listings')
+        .set('Authorization', `Bearer ${accessToken}`)
         .send({
-          sellerId: userId,
           title: 'Nike Dunk Low',
           categoryId: 'men-shoes',
           brandId: nikeId,
@@ -112,7 +146,7 @@ describe('API (e2e)', () => {
       listingId = res.body.id;
     });
 
-    it('GET /listings — should return feed', async () => {
+    it('GET /listings — should return feed (public)', async () => {
       const res = await request(app.getHttpServer())
         .get('/listings')
         .expect(200);
@@ -121,7 +155,7 @@ describe('API (e2e)', () => {
       expect(res.body.total).toBeGreaterThanOrEqual(1);
     });
 
-    it('GET /listings?verifiedOnly=true — should filter', async () => {
+    it('GET /listings?verifiedOnly=true — should filter verified', async () => {
       const res = await request(app.getHttpServer())
         .get('/listings?verifiedOnly=true')
         .expect(200);
@@ -140,9 +174,16 @@ describe('API (e2e)', () => {
       expect(res.body.seller).toBeDefined();
     });
 
-    it('DELETE /listings/:id — should soft-delete', async () => {
+    it('DELETE /listings/:id — should require auth', async () => {
       await request(app.getHttpServer())
         .delete(`/listings/${listingId}`)
+        .expect(401);
+    });
+
+    it('DELETE /listings/:id — should soft-delete with auth', async () => {
+      await request(app.getHttpServer())
+        .delete(`/listings/${listingId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
       const res = await request(app.getHttpServer())

@@ -14,6 +14,11 @@ enum APIError: LocalizedError {
     }
 }
 
+struct AuthResponse: Codable {
+    let accessToken: String
+    let user: User
+}
+
 class APIClient {
     static let shared = APIClient()
 
@@ -28,9 +33,14 @@ class APIClient {
         return d
     }()
 
+    var accessToken: String? {
+        get { UserDefaults.standard.string(forKey: "accessToken") }
+        set { UserDefaults.standard.set(newValue, forKey: "accessToken") }
+    }
+
     private init() {}
 
-    private func request<T: Decodable>(_ method: String, path: String, body: (any Encodable)? = nil, query: [String: String]? = nil) async throws -> T {
+    private func request<T: Decodable>(_ method: String, path: String, body: (any Encodable)? = nil, query: [String: String]? = nil, authenticated: Bool = false) async throws -> T {
         var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
         if let query {
             components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
@@ -42,6 +52,9 @@ class APIClient {
         if let body {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try JSONEncoder().encode(body)
+        }
+        if authenticated, let token = accessToken {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
         let (data, response) = try await URLSession.shared.data(for: req)
@@ -59,10 +72,29 @@ class APIClient {
         }
     }
 
+    // MARK: - Auth
+
+    func register(_ req: CreateUserRequest) async throws -> AuthResponse {
+        let response: AuthResponse = try await request("POST", path: "/auth/register", body: req)
+        accessToken = response.accessToken
+        return response
+    }
+
+    func login(email: String, password: String) async throws -> AuthResponse {
+        let body = LoginRequest(email: email, password: password)
+        let response: AuthResponse = try await request("POST", path: "/auth/login", body: body)
+        accessToken = response.accessToken
+        return response
+    }
+
+    func logout() {
+        accessToken = nil
+    }
+
     // MARK: - Users
 
-    func register(_ req: CreateUserRequest) async throws -> User {
-        try await request("POST", path: "/users", body: req)
+    func getMyProfile() async throws -> User {
+        try await request("GET", path: "/users/me", authenticated: true)
     }
 
     func getUser(id: String) async throws -> User {
@@ -82,7 +114,7 @@ class APIClient {
     // MARK: - Listings
 
     func createListing(_ req: CreateListingRequest) async throws -> Listing {
-        try await request("POST", path: "/listings", body: req)
+        try await request("POST", path: "/listings", body: req, authenticated: true)
     }
 
     func getListings(verifiedOnly: Bool = false, page: Int = 1, query: String? = nil, categoryId: String? = nil) async throws -> ListingFeedResponse {

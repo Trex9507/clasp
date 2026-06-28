@@ -2,7 +2,6 @@ import SwiftUI
 
 struct CreateListingView: View {
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("userId") private var userId = ""
 
     // Form state
     @State private var title = ""
@@ -209,7 +208,6 @@ struct CreateListingView: View {
         errorMessage = nil
 
         let req = CreateListingRequest(
-            sellerId: userId,
             title: title,
             description: description.isEmpty ? nil : description,
             categoryId: selectedSubcategory?.id ?? selectedCategory?.id ?? "",

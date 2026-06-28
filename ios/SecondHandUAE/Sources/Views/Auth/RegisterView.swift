@@ -63,10 +63,10 @@ struct RegisterView: View {
         errorMessage = nil
         Task {
             do {
-                let user = try await APIClient.shared.register(
+                let response = try await APIClient.shared.register(
                     CreateUserRequest(email: email, password: password, name: name, city: city)
                 )
-                userId = user.id
+                userId = response.user.id
                 isLoggedIn = true
             } catch {
                 errorMessage = error.localizedDescription

@@ -23,6 +23,7 @@ export class ListingsService {
     const listing = await this.prisma.listing.create({
       data: {
         ...data,
+        sellerId: data.sellerId!,
         verificationStatus,
         verificationCode: verificationCode || null,
         verificationPhotoUrl: verificationPhotoUrl || null,

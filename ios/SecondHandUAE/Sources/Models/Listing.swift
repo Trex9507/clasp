@@ -45,7 +45,6 @@ struct ListingFeedResponse: Codable {
 }
 
 struct CreateListingRequest: Codable {
-    let sellerId: String
     let title: String
     let description: String?
     let categoryId: String

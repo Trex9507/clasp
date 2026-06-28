@@ -48,8 +48,15 @@ struct LoginView: View {
     private func login() {
         isLoading = true
         errorMessage = nil
-        // MVP: login is simplified — in production this would hit an auth endpoint
-        errorMessage = "Login not yet implemented — please register a new account"
-        isLoading = false
+        Task {
+            do {
+                let response = try await APIClient.shared.login(email: email, password: password)
+                userId = response.user.id
+                isLoggedIn = true
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isLoading = false
+        }
     }
 }

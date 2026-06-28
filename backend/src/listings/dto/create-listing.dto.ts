@@ -1,8 +1,9 @@
 import { IsEnum, IsNumber, IsOptional, IsString, IsUUID, Min, IsArray } from 'class-validator';
 
 export class CreateListingDto {
-  @IsUUID()
-  sellerId: string;
+  @IsOptional()
+  @IsString()
+  sellerId?: string;
 
   @IsString()
   title: string;
