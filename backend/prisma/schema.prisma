@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum City {
+  dubai
+  abu_dhabi
+}
+
+enum KycStatus {
+  none
+  pending
+  verified
+}
+
+enum ListingStatus {
+  active
+  reserved
+  sold
+  removed
+}
+
+enum VerificationStatus {
+  not_applicable
+  unverified
+  verified
+}
+
+enum VerificationType {
+  none
+  serial
+  tag
+  date_code
+}
+
+enum ItemCondition {
+  new_with_tags
+  like_new
+  good
+  fair
+}
+
+enum DeliveryOption {
+  hand_off
+  courier
+  both
+}
+
+model User {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  phone            String?  @unique
+  passwordHash     String   @map("password_hash")
+  name             String
+  profilePhotoUrl  String?  @map("profile_photo_url")
+  city             City
+  kycStatus        KycStatus @default(none) @map("kyc_status")
+  kycProviderRefId String?  @map("kyc_provider_ref_id")
+  payoutMethod     String?  @map("payout_method")
+  ratingAvg        Float    @default(0) @map("rating_avg")
+  ratingCount      Int      @default(0) @map("rating_count")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  listings Listing[]
+
+  @@map("users")
+}
+
+model Brand {
+  id                       String           @id @default(uuid())
+  name                     String           @unique
+  verificationType         VerificationType @map("verification_type")
+  verificationInstructions String?          @map("verification_instructions")
+
+  listings Listing[]
+
+  @@map("brands")
+}
+
+model Category {
+  id       String     @id @default(uuid())
+  name     String
+  parentId String?    @map("parent_id")
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+
+  listings Listing[]
+
+  @@map("categories")
+}
+
+model Listing {
+  id                 String             @id @default(uuid())
+  sellerId           String             @map("seller_id")
+  title              String
+  description        String?
+  categoryId         String             @map("category_id")
+  brandId            String?            @map("brand_id")
+  size               String?
+  condition          ItemCondition
+  price              Float
+  currency           String             @default("AED")
+  status             ListingStatus      @default(active)
+  verificationStatus VerificationStatus @default(not_applicable) @map("verification_status")
+  verificationCode   String?            @map("verification_code")
+  verificationPhotoUrl String?          @map("verification_photo_url")
+  deliveryOptions    DeliveryOption     @map("delivery_options")
+  createdAt          DateTime           @default(now()) @map("created_at")
+
+  seller   User     @relation(fields: [sellerId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
+  brand    Brand?   @relation(fields: [brandId], references: [id])
+  photos   ListingPhoto[]
+
+  @@map("listings")
+}
+
+model ListingPhoto {
+  id        String  @id @default(uuid())
+  listingId String  @map("listing_id")
+  url       String
+  sortOrder Int     @default(0) @map("sort_order")
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@map("listing_photos")
+}
