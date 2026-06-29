@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<title>SecondHand UAE</title>
+<title>Mawda</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -267,7 +267,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe 
   <div class="onboarding">
     <div class="logo">
       <div class="logo-icon">👜</div>
-      <h2>SecondHand</h2>
+      <h2>Mawda</h2>
       <h3>UAE</h3>
       <p>Buy & sell pre-loved fashion<br>in Dubai & Abu Dhabi</p>
     </div>
@@ -611,7 +611,11 @@ function setPalette(p) {
 var savedPalette = localStorage.getItem('palette');
 if (savedPalette && savedPalette !== 'A') setPalette(savedPalette);
 
-if (token) { showScreen('main'); loadFeed(); }
+var isDemo = !token && (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1');
+if (isDemo) {
+  token = 'demo'; userId = 'demo-user'; userName = 'Demo User'; userCity = 'dubai';
+  showScreen('main'); loadFeed();
+} else if (token) { showScreen('main'); loadFeed(); }
 
 function api(method, path, body) {
   var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
@@ -934,6 +938,12 @@ function updateDelivery() {
 function submitOffer() {
   var amount = parseFloat(document.getElementById('offer-amount').value);
   if (!amount || !currentListing) return;
+  var isDemo = currentListing.id && currentListing.id.indexOf('demo') === 0;
+  if (isDemo) {
+    closeModal('offer-modal');
+    alert('✅ Offer of AED ' + amount + ' sent for ' + currentListing.title + '!\n\nThe seller will be notified.');
+    return;
+  }
   api('POST', '/offers', { listingId: currentListing.id, amount: amount }).then(function() {
     closeModal('offer-modal');
     alert('Offer sent!');
@@ -944,6 +954,13 @@ function submitBuy() {
   if (!currentListing) return;
   var method = document.querySelector('input[name=delivery]:checked').value;
   var address = method === 'courier' ? document.getElementById('buy-address').value : null;
+  var isDemo = currentListing.id && currentListing.id.indexOf('demo') === 0;
+  if (isDemo) {
+    closeModal('buy-modal');
+    alert('✅ Order placed for ' + currentListing.title + ' — AED ' + Math.round(currentListing.price) + '\n\nDelivery: ' + method.replace(/_/g, ' ') + (address ? '\nAddress: ' + address : '') + '\n\nCheck the Orders tab to proceed with payment.');
+    switchTab('orders');
+    return;
+  }
   api('POST', '/orders', {
     listingId: currentListing.id, offerId: null, deliveryMethod: method, deliveryAddress: address
   }).then(function() {
