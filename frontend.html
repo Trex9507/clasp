@@ -208,6 +208,38 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe 
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); }
 
+/* Photo upload */
+.photo-upload-area { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.photo-slot { width: 90px; height: 90px; border-radius: 12px; overflow: hidden; position: relative; flex-shrink: 0; }
+.photo-slot img { width: 100%; height: 100%; object-fit: cover; }
+.photo-slot .remove-photo { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,0.6); color: white; border: none; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.photo-slot .photo-label { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.5); color: white; font-size: 8px; text-align: center; padding: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
+.photo-add-btn { width: 90px; height: 90px; border-radius: 12px; border: 2px dashed var(--light); background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: var(--muted); font-size: 10px; gap: 4px; }
+.photo-add-btn:hover { border-color: var(--primary); color: var(--primary); }
+.photo-add-btn .plus { font-size: 24px; line-height: 1; }
+
+/* Verification photo */
+.verification-upload { display: flex; gap: 10px; margin-top: 10px; }
+.verification-photo-btn { width: 80px; height: 80px; border-radius: 10px; border: 2px dashed var(--primary); background: var(--secondary-light); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; font-size: 9px; color: var(--primary); gap: 3px; }
+.verification-photo-btn .icon { font-size: 22px; }
+.verification-photo-btn.has-photo { border-style: solid; }
+.verification-photo-btn.has-photo img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+
+/* Photo carousel in detail */
+.photo-carousel { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+.photo-carousel .slide { width: 100%; flex-shrink: 0; scroll-snap-align: start; height: 380px; background: var(--light); display: flex; align-items: center; justify-content: center; }
+.photo-carousel .slide img { width: 100%; height: 100%; object-fit: cover; }
+.photo-dots { display: flex; justify-content: center; gap: 6px; padding: 8px; }
+.photo-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--light); }
+.photo-dot.active { background: var(--primary); }
+
+/* Condition report */
+.condition-guide { padding: 12px; background: var(--bg); border-radius: 12px; margin-bottom: 16px; }
+.condition-guide h4 { font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+.condition-guide .angles { display: flex; gap: 6px; }
+.condition-guide .angle { flex: 1; text-align: center; padding: 8px 4px; background: var(--card); border-radius: 8px; font-size: 9px; color: var(--muted); }
+.condition-guide .angle .icon { font-size: 18px; display: block; margin-bottom: 3px; }
+
 /* Category pills */
 .cat-pills { display: flex; gap: 6px; overflow-x: auto; padding: 0 16px 8px; }
 .cat-pill { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; border: 0.5px solid var(--light); background: var(--card); color: var(--text); cursor: pointer; white-space: nowrap; }
@@ -431,34 +463,77 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe 
 <div class="modal-overlay" id="create-modal">
   <div class="modal" style="max-height:90vh;">
     <div class="modal-header"><h3>Sell an item</h3><button class="modal-close" onclick="closeModal('create-modal')">×</button></div>
+
+    <!-- Photo upload -->
+    <div class="field">
+      <label>Photos <span style="font-weight:400;color:var(--muted);">(min 3 required)</span></label>
+      <div class="condition-guide">
+        <h4>Required angles</h4>
+        <div class="angles">
+          <div class="angle"><span class="icon">📸</span>Front</div>
+          <div class="angle"><span class="icon">🔄</span>Back</div>
+          <div class="angle"><span class="icon">🏷️</span>Label</div>
+          <div class="angle"><span class="icon">🔍</span>Details</div>
+          <div class="angle"><span class="icon">📐</span>Defects</div>
+        </div>
+      </div>
+      <div class="photo-upload-area" id="cl-photos">
+        <input type="file" id="cl-photo-input" accept="image/*" multiple style="display:none;" onchange="handlePhotoUpload(event)">
+        <div class="photo-add-btn" onclick="document.getElementById('cl-photo-input').click()">
+          <span class="plus">+</span>
+          Add photos
+        </div>
+      </div>
+    </div>
+
     <div class="field"><label>Title</label><input id="cl-title" placeholder="e.g. Gucci Marmont Bag"></div>
     <div class="field"><label>Category</label>
-      <select id="cl-category" style="width:100%;padding:12px;border-radius:12px;border:none;background:var(--bg);font-size:14px;">
+      <select id="cl-category">
         <option value="">Select category...</option>
       </select>
     </div>
     <div class="field"><label>Brand</label>
-      <select id="cl-brand" style="width:100%;padding:12px;border-radius:12px;border:none;background:var(--bg);font-size:14px;" onchange="onBrandChange()">
+      <select id="cl-brand" onchange="onBrandChange()">
         <option value="">None / Other</option>
       </select>
     </div>
+
+    <!-- Verification section -->
     <div id="cl-verification" style="display:none;padding:14px;background:var(--secondary-light);border-radius:12px;margin-bottom:16px;">
-      <p style="font-size:11px;color:var(--primary);font-weight:600;margin-bottom:8px;">Authentication available for this brand</p>
-      <div class="field"><label>Verification code</label><input id="cl-vcode" placeholder="Enter code from label/tag"></div>
-      <div class="field"><label>Photo of label/tag</label><input id="cl-vphoto" placeholder="Upload coming soon" disabled style="opacity:0.5;"></div>
-      <p style="font-size:10px;color:var(--muted);line-height:1.4;">Items with a valid code get the "Authenticated" badge. Without it, your item shows as "Unverified".</p>
+      <p style="font-size:12px;font-weight:600;color:var(--primary);margin-bottom:4px;">🛡️ Authentication available</p>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:12px;">Provide verification to earn the Authenticated badge</p>
+      <div class="field"><label>Serial / verification code</label><input id="cl-vcode" placeholder="Enter code from label, tag, or certificate"></div>
+      <div class="field">
+        <label>Photo of label / tag / certificate</label>
+        <div class="verification-upload">
+          <input type="file" id="cl-vphoto-input" accept="image/*" style="display:none;" onchange="handleVerificationPhoto(event)">
+          <div class="verification-photo-btn" id="cl-vphoto-btn" onclick="document.getElementById('cl-vphoto-input').click()">
+            <span class="icon">📷</span>
+            Add photo
+          </div>
+          <div style="flex:1;font-size:11px;color:var(--muted);line-height:1.5;">
+            Take a clear photo of the brand label, serial number tag, or authenticity certificate.<br><br>
+            Items with valid code + photo → <b style="color:var(--auth-green);">● Authenticated</b><br>
+            Items with code only → <b style="color:var(--auth-blue);">● AI Reviewed</b><br>
+            No verification → <b style="color:var(--auth-grey);">● Unverified</b>
+          </div>
+        </div>
+      </div>
     </div>
+
     <div class="field"><label>Condition</label>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        <button type="button" class="pill active" onclick="selectCondition(this,'like_new')">Like new</button>
-        <button type="button" class="pill" onclick="selectCondition(this,'new_with_tags')">New w/ tags</button>
+        <button type="button" class="pill active" onclick="selectCondition(this,'new_with_tags')">New w/ tags</button>
+        <button type="button" class="pill" onclick="selectCondition(this,'like_new')">Like new</button>
         <button type="button" class="pill" onclick="selectCondition(this,'good')">Good</button>
         <button type="button" class="pill" onclick="selectCondition(this,'fair')">Fair</button>
       </div>
     </div>
     <div class="field"><label>Size</label><input id="cl-size" placeholder="e.g. M, 42, One Size"></div>
-    <div class="field"><label>Price (AED)</label><input type="number" id="cl-price" placeholder="0"></div>
-    <div class="field"><label>Description</label><textarea id="cl-desc" placeholder="Describe your item — condition details, measurements, etc." rows="3"></textarea></div>
+    <div class="field"><label>Price (AED)</label><input type="number" id="cl-price" placeholder="0">
+      <p style="font-size:11px;color:var(--muted);margin-top:6px;" id="cl-price-hint"></p>
+    </div>
+    <div class="field"><label>Description</label><textarea id="cl-desc" placeholder="Describe your item — condition details, measurements, wear marks, included accessories, etc." rows="4"></textarea></div>
     <button class="btn-dark" onclick="submitListing()">Publish listing</button>
   </div>
 </div>
@@ -484,11 +559,48 @@ var currentListing = null;
 var allBrands = [];
 var allCategories = [];
 var verifiedOnly = false;
-var selectedCondition = 'like_new';
+var selectedCondition = 'new_with_tags';
 var selectedCity = 'dubai';
 var searchTimeout = null;
 var currentCategoryFilter = null;
-var authFilter = 'all'; // all, authenticated, ai_reviewed
+var authFilter = 'all';
+var uploadedPhotos = [];
+var verificationPhotoData = null;
+
+var DEMO_LISTINGS = [
+  { id: 'demo1', title: 'Chanel Classic Flap', brand: { name: 'CHANEL' }, price: 12500, verificationStatus: 'verified', condition: 'like_new', size: 'Medium', sellerId: 'demo-seller', status: 'active',
+    description: 'Iconic Chanel Classic Flap in black caviar leather with gold hardware. Excellent condition, comes with dust bag and authenticity card.',
+    photos: [{ url: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&h=600&fit=crop' }],
+    seller: { id: 'demo-seller', name: 'Fatima A.', city: 'dubai', ratingAvg: 4.9, ratingCount: 47 } },
+  { id: 'demo2', title: 'Gucci Ace Sneakers', brand: { name: 'GUCCI' }, price: 1450, verificationStatus: 'verified', condition: 'good', size: '40', sellerId: 'demo-seller2', status: 'active',
+    description: 'Gucci Ace leather sneakers with Web detail. Light wear on soles, uppers in great shape.',
+    photos: [{ url: 'https://images.unsplash.com/photo-1543508282-6319a3e2621f?w=600&h=600&fit=crop' }],
+    seller: { id: 'demo-seller2', name: 'Sara K.', city: 'abu_dhabi', ratingAvg: 4.7, ratingCount: 23 } },
+  { id: 'demo3', title: 'Louis Vuitton Neverfull MM', brand: { name: 'LOUIS VUITTON' }, price: 4800, verificationStatus: 'verified', condition: 'like_new', size: 'MM', sellerId: 'demo-seller3', status: 'active',
+    description: 'LV Neverfull MM in Damier Ebene. Barely used, no patina yet. Includes pouch and dust bag.',
+    photos: [{ url: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&h=600&fit=crop' }],
+    seller: { id: 'demo-seller3', name: 'Noura M.', city: 'dubai', ratingAvg: 5.0, ratingCount: 12 } },
+  { id: 'demo4', title: 'Zara Wool Blazer', brand: { name: 'ZARA' }, price: 180, verificationStatus: 'unverified', condition: 'new_with_tags', size: 'S', sellerId: 'demo-seller4', status: 'active',
+    description: 'Brand new with tags. Oversized fit, dark grey wool blend. Never worn — wrong size.',
+    photos: [{ url: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=600&h=600&fit=crop' }],
+    seller: { id: 'demo-seller4', name: 'Aisha R.', city: 'dubai', ratingAvg: 4.3, ratingCount: 8 } },
+  { id: 'demo5', title: 'Dior Saddle Bag', brand: { name: 'DIOR' }, price: 8200, verificationStatus: 'verified', condition: 'like_new', size: 'One Size', sellerId: 'demo-seller', status: 'active',
+    description: 'Dior Saddle bag in oblique canvas. Pristine condition, includes box, dust bag, and receipt.',
+    photos: [{ url: 'https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?w=600&h=600&fit=crop' }],
+    seller: { id: 'demo-seller', name: 'Fatima A.', city: 'dubai', ratingAvg: 4.9, ratingCount: 47 } },
+  { id: 'demo6', title: 'Nike Air Jordan 1 Retro', brand: { name: 'NIKE' }, price: 750, verificationStatus: 'ai_reviewed', condition: 'good', size: '43', sellerId: 'demo-seller5', status: 'active',
+    description: 'Jordan 1 Retro High OG "Chicago". Worn twice, minimal creasing. AI-verified by photo scan.',
+    photos: [{ url: 'https://images.unsplash.com/photo-1552346154-21d32810aba3?w=600&h=600&fit=crop' }],
+    seller: { id: 'demo-seller5', name: 'Omar B.', city: 'abu_dhabi', ratingAvg: 4.5, ratingCount: 15 } },
+  { id: 'demo7', title: 'Massimo Dutti Silk Dress', brand: { name: 'MASSIMO DUTTI' }, price: 320, verificationStatus: 'unverified', condition: 'like_new', size: 'M', sellerId: 'demo-seller6', status: 'active',
+    description: 'Elegant silk midi dress in dusty rose. Worn once for an event. Dry cleaned.',
+    photos: [{ url: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600&h=600&fit=crop' }],
+    seller: { id: 'demo-seller6', name: 'Lina T.', city: 'dubai', ratingAvg: 4.6, ratingCount: 5 } },
+  { id: 'demo8', title: 'Ray-Ban Aviator Classic', brand: { name: 'RAY-BAN' }, price: 420, verificationStatus: 'ai_reviewed', condition: 'like_new', size: '58mm', sellerId: 'demo-seller7', status: 'active',
+    description: 'Classic aviators in gold with green G-15 lenses. Comes with case and cleaning cloth.',
+    photos: [{ url: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=600&h=600&fit=crop' }],
+    seller: { id: 'demo-seller7', name: 'Khalid S.', city: 'dubai', ratingAvg: 4.8, ratingCount: 31 } },
+];
 
 function setPalette(p) {
   document.documentElement.setAttribute('data-palette', p === 'A' ? '' : p);
@@ -624,44 +736,77 @@ function getAuthDisclaimer(status) {
   return '<div class="disclaimer">● <b>Unverified</b> — Standard listing, no verification provided. Buy with care.</div>';
 }
 
+function renderListingCard(l) {
+  var photo = l.photos && l.photos[0] ? l.photos[0].url : null;
+  var imgHtml = photo && photo.indexOf('placeholder.com') === -1
+    ? '<img src="' + photo + '" alt="">'
+    : '<div style="font-size:28px;color:#c4b8a8;">👜</div>';
+  var badge = getAuthBadge(l.verificationStatus);
+  return '<div class="listing-card" onclick="showDetail(\'' + l.id + '\')">' +
+    '<div class="thumb">' + imgHtml + badge + '</div>' +
+    '<div class="info">' +
+      '<div class="brand">' + (l.brand ? l.brand.name : '') + '</div>' +
+      '<div class="title">' + l.title + '</div>' +
+      '<div class="price">AED ' + Math.round(l.price).toLocaleString() + '</div>' +
+    '</div></div>';
+}
+
 function loadFeed(query) {
   var url = '/listings?page=1';
   if (verifiedOnly) url += '&verifiedOnly=true';
   if (query) url += '&q=' + encodeURIComponent(query);
   api('GET', url).then(function(data) {
+    var items = data.items || [];
+    var demos = DEMO_LISTINGS.filter(function(d) {
+      if (query) {
+        var q = query.toLowerCase();
+        return d.title.toLowerCase().indexOf(q) !== -1 || d.brand.name.toLowerCase().indexOf(q) !== -1;
+      }
+      if (verifiedOnly && d.verificationStatus !== 'verified') return false;
+      return true;
+    });
+    var all = items.concat(demos);
     var grid = document.getElementById('listings-grid');
     var empty = document.getElementById('feed-empty');
-    if (!data.items.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+    if (!all.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
-    grid.innerHTML = data.items.map(function(l) {
-      var photo = l.photos && l.photos[0] ? l.photos[0].url : null;
-      var imgHtml = photo && photo.indexOf('example.com') === -1
-        ? '<img src="' + photo + '" alt="">'
-        : '<div style="font-size:28px;color:#c4b8a8;">👜</div>';
-      var badge = getAuthBadge(l.verificationStatus);
-      return '<div class="listing-card" onclick="showDetail(\'' + l.id + '\')">' +
-        '<div class="thumb">' + imgHtml + badge + '</div>' +
-        '<div class="info">' +
-          '<div class="brand">' + (l.brand ? l.brand.name : '') + '</div>' +
-          '<div class="title">' + l.title + '</div>' +
-          '<div class="price">AED ' + Math.round(l.price) + '</div>' +
-        '</div></div>';
-    }).join('');
-  }).catch(function() {});
+    grid.innerHTML = all.map(renderListingCard).join('');
+  }).catch(function() {
+    var demos = DEMO_LISTINGS;
+    if (verifiedOnly) demos = demos.filter(function(d) { return d.verificationStatus === 'verified'; });
+    var grid = document.getElementById('listings-grid');
+    var empty = document.getElementById('feed-empty');
+    if (!demos.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    grid.innerHTML = demos.map(renderListingCard).join('');
+  });
 }
 
 function showDetail(id) {
-  api('GET', '/listings/' + id).then(function(l) {
+  var demoItem = DEMO_LISTINGS.find(function(d) { return d.id === id; });
+  var p = demoItem ? Promise.resolve(demoItem) : api('GET', '/listings/' + id);
+  p.then(function(l) {
     currentListing = l;
     document.getElementById('feed-page').style.display = 'none';
     document.getElementById('closet-page').style.display = 'none';
     var dp = document.getElementById('detail-page');
     dp.style.display = 'flex';
 
-    var photo = l.photos && l.photos[0] ? l.photos[0].url : null;
-    var imgHtml = photo && photo.indexOf('example.com') === -1
-      ? '<img src="' + photo + '" alt="" style="width:100%;height:100%;object-fit:cover;">'
-      : '<div style="font-size:56px;color:#c4b8a8;">👜</div>';
+    var photos = l.photos || [];
+    var heroHtml;
+    if (photos.length > 1) {
+      heroHtml = '<div class="photo-carousel" id="detail-carousel">' +
+        photos.map(function(p) {
+          return '<div class="slide"><img src="' + p.url + '" alt=""></div>';
+        }).join('') + '</div>' +
+        '<div class="photo-dots">' + photos.map(function(_, i) {
+          return '<div class="photo-dot' + (i === 0 ? ' active' : '') + '"></div>';
+        }).join('') + '</div>';
+    } else if (photos.length === 1 && photos[0].url.indexOf('placeholder.com') === -1) {
+      heroHtml = '<div class="detail-hero"><img src="' + photos[0].url + '" alt="" style="width:100%;height:100%;object-fit:cover;"></div>';
+    } else {
+      heroHtml = '<div class="detail-hero"><div style="font-size:56px;color:#c4b8a8;">👜</div></div>';
+    }
 
     var badge = getAuthBadgeInline(l.verificationStatus);
     var disclaimer = getAuthDisclaimer(l.verificationStatus);
@@ -671,7 +816,7 @@ function showDetail(id) {
     document.getElementById('detail-content').innerHTML =
       '<div style="position:relative;">' +
         '<button onclick="backToFeed()" style="position:absolute;top:16px;left:16px;z-index:10;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.9);border:none;font-size:18px;cursor:pointer;">←</button>' +
-        '<div class="detail-hero">' + imgHtml + '</div>' +
+        heroHtml +
       '</div>' +
       '<div class="detail-body">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;">' +
@@ -958,6 +1103,83 @@ function submitWishlist() {
   closeModal('wishlist-modal');
   alert('Wishlist item posted! Sellers will be notified.');
 }
+
+// Photo upload handling
+function handlePhotoUpload(event) {
+  var files = Array.from(event.target.files);
+  files.forEach(function(file) {
+    if (uploadedPhotos.length >= 8) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      uploadedPhotos.push({ data: e.target.result, name: file.name });
+      renderUploadedPhotos();
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
+}
+
+function renderUploadedPhotos() {
+  var area = document.getElementById('cl-photos');
+  var labels = ['Front', 'Back', 'Label', 'Details', 'Defects', '', '', ''];
+  var html = uploadedPhotos.map(function(p, i) {
+    return '<div class="photo-slot">' +
+      '<img src="' + p.data + '" alt="">' +
+      '<button class="remove-photo" onclick="removePhoto(' + i + ')">×</button>' +
+      (labels[i] ? '<div class="photo-label">' + labels[i] + '</div>' : '') +
+    '</div>';
+  }).join('');
+  html += '<input type="file" id="cl-photo-input" accept="image/*" multiple style="display:none;" onchange="handlePhotoUpload(event)">';
+  if (uploadedPhotos.length < 8) {
+    html += '<div class="photo-add-btn" onclick="document.getElementById(\'cl-photo-input\').click()">' +
+      '<span class="plus">+</span>' +
+      (uploadedPhotos.length === 0 ? 'Add photos' : uploadedPhotos.length + '/8') +
+    '</div>';
+  }
+  area.innerHTML = html;
+  updatePublishButton();
+}
+
+function removePhoto(idx) {
+  uploadedPhotos.splice(idx, 1);
+  renderUploadedPhotos();
+}
+
+function handleVerificationPhoto(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    verificationPhotoData = e.target.result;
+    var btn = document.getElementById('cl-vphoto-btn');
+    btn.classList.add('has-photo');
+    btn.innerHTML = '<img src="' + e.target.result + '" alt="">';
+  };
+  reader.readAsDataURL(file);
+}
+
+function updatePublishButton() {
+  var photoCount = uploadedPhotos.length;
+  var btn = document.querySelector('#create-modal .btn-dark');
+  if (photoCount < 3) {
+    btn.textContent = 'Add at least ' + (3 - photoCount) + ' more photo' + (3 - photoCount > 1 ? 's' : '');
+    btn.style.opacity = '0.5';
+  } else {
+    btn.textContent = 'Publish listing';
+    btn.style.opacity = '1';
+  }
+}
+
+// Override showCreateListing to reset photo state
+var _origShowCreateListing = showCreateListing;
+showCreateListing = function() {
+  uploadedPhotos = [];
+  verificationPhotoData = null;
+  var vbtn = document.getElementById('cl-vphoto-btn');
+  if (vbtn) { vbtn.classList.remove('has-photo'); vbtn.innerHTML = '<span class="icon">📷</span>Add photo'; }
+  _origShowCreateListing();
+  renderUploadedPhotos();
+};
 </script>
 </body>
 </html>
