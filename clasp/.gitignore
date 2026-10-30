@@ -1,0 +1,23 @@
+# Variabili d'ambiente
+.env
+.env.local
+
+# Artefatti di build TypeScript
+dist/
+*.tsbuildinfo
+
+# Artefatti Foundry
+contract/out/
+contract/cache/
+
+# Database SQLite locale
+*.db
+*.db-shm
+*.db-wal
+
+# Node
+node_modules/
+**/node_modules/
+
+# macOS
+.DS_Store
