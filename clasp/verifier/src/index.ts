@@ -1,4 +1,4 @@
-// Verificatore — logica da implementare nella fase successiva.
-// Controlla i criteri della scheda lavoro: regole in codice + modello AI economico.
-
-export {};
+export { verify, verifyItem } from "./rules.js";
+export { templates } from "./templates.js";
+export type { VerificationResult, JobSpec } from "./rules.js";
+export type { TemplateKey } from "./templates.js";
