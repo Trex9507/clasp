@@ -204,18 +204,10 @@ contract ClaspEscrowTest is Test {
     // ---------- helper ----------
 
     function _job(bytes32 id) internal view returns (
-        address, address, address, uint256, uint256, uint256, bytes32, uint64, ClaspEscrow.JobStatus
+        address buyer, address provider, address referrer,
+        uint256 amount, uint256 fee, uint256 referralFee,
+        bytes32 specHash, uint64 deadline, ClaspEscrow.JobStatus status
     ) {
-        return (
-            escrow.jobs(id).buyer,
-            escrow.jobs(id).provider,
-            escrow.jobs(id).referrer,
-            escrow.jobs(id).amount,
-            escrow.jobs(id).fee,
-            escrow.jobs(id).referralFee,
-            escrow.jobs(id).specHash,
-            escrow.jobs(id).deadline,
-            escrow.jobs(id).status
-        );
+        return escrow.jobs(id);
     }
 }
