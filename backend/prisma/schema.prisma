@@ -27,6 +27,7 @@ enum ListingStatus {
 enum VerificationStatus {
   not_applicable
   unverified
+  ai_reviewed
   verified
 }
 
@@ -73,6 +74,9 @@ model User {
   disputes       Dispute[]
   reviewsGiven   Review[]  @relation("ReviewsGiven")
   reviewsReceived Review[] @relation("ReviewsReceived")
+  following      Follow[]  @relation("Following")
+  followers      Follow[]  @relation("Followers")
+  wishlistItems  WishlistItem[]
 
   @@map("users")
 }
@@ -254,4 +258,30 @@ model Review {
 
   @@unique([orderId, reviewerId])
   @@map("reviews")
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String   @map("follower_id")
+  followingId String   @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower  User @relation("Following", fields: [followerId], references: [id])
+  following User @relation("Followers", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+model WishlistItem {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  description String
+  maxBudget   Float?   @map("max_budget")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("wishlist_items")
 }
