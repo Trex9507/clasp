@@ -1,0 +1,8 @@
+pnpm-lock.yaml
+dist
+coverage
+contracts/*/lib
+contracts/*/out
+contracts/*/cache
+docs/simulation/*.py
+.claude/skills

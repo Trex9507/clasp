@@ -1,44 +1,37 @@
 # Dependencies
 node_modules/
 
-# Build
+# Build output
 dist/
 build/
-*.js.map
+*.tsbuildinfo
+coverage/
 
 # Environment
 .env
 .env.*
 !.env.example
 
-# IDE
+# Foundry
+contracts/*/out/
+contracts/*/cache/
+contracts/*/broadcast/
+
+# Local SQLite databases (escrow prototype)
+*.db
+*.db-shm
+*.db-wal
+
+# Playwright
+test-results/
+playwright-report/
+
+# Python (docs/simulation)
+__pycache__/
+
+# Editors and OS
 .idea/
 .vscode/
 *.swp
-*.swo
-*~
-
-# OS
 .DS_Store
 Thumbs.db
-
-# Backend
-backend/node_modules/
-backend/dist/
-backend/coverage/
-
-# iOS
-ios/**/*.xcodeproj/xcuserdata/
-ios/**/*.xcworkspace/xcuserdata/
-ios/**/DerivedData/
-ios/**/*.hmap
-ios/**/*.ipa
-ios/**/*.dSYM.zip
-ios/**/*.dSYM
-ios/.build/
-ios/Pods/
-ios/*.xcworkspace
-
-# Prisma
-backend/prisma/*.db
-ios/SecondHandUAE/.build/

@@ -1,0 +1,19 @@
+{
+  "name": "@clasp/escrow-mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Parked escrow prototype: MCP server exposing the six job actions over stdio.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx watch --conditions=@clasp/source src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@clasp/verifier": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.6.7"
+  }
+}
