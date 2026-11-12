@@ -9,6 +9,7 @@ import {
 import type { Config } from "./config.js"
 import type { AgentRuntime } from "@clasp/runtime"
 import type { Db } from "./db/client.js"
+import { RuntimeError } from "@clasp/runtime"
 import { DomainError } from "./errors.js"
 import { createSecretBox } from "./crypto.js"
 import { discoverTools, type DiscoverTools } from "./mcp/discovery.js"
@@ -22,6 +23,7 @@ export interface AppDeps {
     | "CREDENTIAL_ENCRYPTION_KEY"
     | "MCP_ALLOW_PRIVATE_HOSTS"
     | "NODE_ENV"
+    | "RUN_BUDGET_CENTS"
   >
   db: Db
   runtime: AgentRuntime
@@ -45,6 +47,11 @@ export async function buildApp({
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof DomainError) {
       return reply.status(error.statusCode).send({ detail: error.message })
+    }
+    if (error instanceof RuntimeError) {
+      // The hosting runtime failed; its message is safe to show and says what to retry.
+      request.log.warn({ err: error }, "runtime call failed")
+      return reply.status(502).send({ detail: error.message })
     }
     if (hasZodFastifySchemaValidationErrors(error)) {
       const detail = error.validation
@@ -78,6 +85,7 @@ export async function buildApp({
     secrets: config.CREDENTIAL_ENCRYPTION_KEY
       ? createSecretBox(config.CREDENTIAL_ENCRYPTION_KEY)
       : undefined,
+    runBudgetCents: config.RUN_BUDGET_CENTS,
   })
 
   return app

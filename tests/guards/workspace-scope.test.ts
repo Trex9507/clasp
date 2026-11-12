@@ -8,6 +8,10 @@ const EXEMPT: Record<string, string> = {
   "apps/api/src/users/user-repository.ts#findUserByEmail": "users are global identities",
   "apps/api/src/workspaces/workspace-repository.ts#listWorkspacesForUser":
     "lists the workspaces a user may act in; it is how scope is found",
+  "apps/api/src/runs/run-repository.ts#findEnvironment":
+    "the runtime environment is shared infrastructure, not a workspace resource",
+  "apps/api/src/runs/run-repository.ts#saveEnvironment":
+    "the runtime environment is shared infrastructure, not a workspace resource",
 }
 
 function exportedFunctions(file: string): { name: string; params: string[] }[] {

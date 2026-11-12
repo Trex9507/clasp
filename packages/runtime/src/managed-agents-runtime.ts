@@ -1,5 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk"
+import type { RunEvent, RunUsage } from "@clasp/shared"
 import { buildSystemPrompt } from "./system-prompt.js"
+import {
+  toRunEvent,
+  toRunUsage,
+  type SessionEventLike,
+  type UsageLike,
+} from "./managed-agents-events.js"
 import {
   RuntimeError,
   type AgentRuntime,
@@ -7,6 +14,7 @@ import {
   type McpCredential,
   type RuntimeAgentRef,
   type RuntimeVaultRef,
+  type StartSessionOptions,
 } from "./types.js"
 
 export interface ManagedAgentsRuntimeOptions {
@@ -120,6 +128,110 @@ export class ManagedAgentsRuntime implements AgentRuntime {
     } catch (error) {
       if (error instanceof Anthropic.NotFoundError) return
       throw new RuntimeError(`Managed Agents credential delete failed: ${describe(error)}`, error)
+    }
+  }
+
+  async ensureEnvironment(existing?: string): Promise<string> {
+    if (existing) return existing
+    return this.call("environment create", async () => {
+      const env = await this.client.beta.environments.create({
+        name: "clasp-agents",
+        // Agents get no sandbox tools, only MCP actions: deny other egress.
+        config: { type: "cloud", networking: { type: "limited", allow_mcp_servers: true } },
+      })
+      return env.id
+    })
+  }
+
+  async startSession(options: StartSessionOptions): Promise<{ sessionId: string }> {
+    return this.call("session create", async () => {
+      const session = await this.client.beta.sessions.create({
+        agent: { type: "agent", id: options.agent.agentId, version: options.agent.version },
+        environment_id: options.environmentId,
+        vault_ids: options.vaultIds,
+        budget: {
+          type: "limit",
+          max_list_cost: { amount: String(options.budgetCents), currency: "USD" },
+        },
+        title: options.title,
+        metadata: options.metadata,
+      })
+      return { sessionId: session.id }
+    })
+  }
+
+  async sendMessage(sessionId: string, text: string): Promise<void> {
+    await this.call("send message", () =>
+      this.client.beta.sessions.events.send(sessionId, {
+        events: [{ type: "user.message", content: [{ type: "text", text }] }],
+      }),
+    )
+  }
+
+  async decideTool(
+    sessionId: string,
+    toolCallId: string,
+    decision: "allow" | "deny",
+    denyMessage?: string,
+  ): Promise<void> {
+    await this.call("tool decision", () =>
+      this.client.beta.sessions.events.send(sessionId, {
+        events: [
+          {
+            type: "user.tool_confirmation",
+            tool_use_id: toolCallId,
+            result: decision,
+            ...(decision === "deny" && denyMessage ? { deny_message: denyMessage } : {}),
+          },
+        ],
+      }),
+    )
+  }
+
+  async interrupt(sessionId: string): Promise<void> {
+    await this.call("interrupt", () =>
+      this.client.beta.sessions.events.send(sessionId, { events: [{ type: "user.interrupt" }] }),
+    )
+  }
+
+  async listEvents(sessionId: string): Promise<RunEvent[]> {
+    return this.call("list events", async () => {
+      const events: RunEvent[] = []
+      for await (const event of this.client.beta.sessions.events.list(sessionId)) {
+        const mapped = toRunEvent(event as unknown as SessionEventLike)
+        if (mapped) events.push(mapped)
+      }
+      return events
+    })
+  }
+
+  async *streamEvents(sessionId: string, signal: AbortSignal): AsyncIterable<RunEvent> {
+    const stream = await this.call("open stream", () =>
+      this.client.beta.sessions.events.stream(sessionId, {}, { signal }),
+    )
+    try {
+      for await (const event of stream) {
+        const mapped = toRunEvent(event as unknown as SessionEventLike)
+        if (mapped) yield mapped
+      }
+    } catch (error) {
+      if (signal.aborted) return
+      throw new RuntimeError(`Managed Agents stream failed: ${describe(error)}`, error)
+    }
+  }
+
+  async getUsage(sessionId: string): Promise<RunUsage> {
+    return this.call("session retrieve", async () => {
+      const session = await this.client.beta.sessions.retrieve(sessionId)
+      return toRunUsage(session.usage as unknown as UsageLike)
+    })
+  }
+
+  private async call<T>(what: string, fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn()
+    } catch (error) {
+      throw new RuntimeError(`Managed Agents ${what} failed: ${describe(error)}`, error)
     }
   }
 }

@@ -1,4 +1,4 @@
-import type { ActionPermission, Effort } from "@clasp/shared"
+import type { ActionPermission, Effort, RunEvent, RunUsage } from "@clasp/shared"
 
 /** One MCP server an agent version uses, with the tools it may call. */
 export interface McpServerSpec {
@@ -54,10 +54,18 @@ export interface McpCredential {
   label: string
 }
 
-/**
- * The only way the platform reaches a model runtime (CLAUDE.md, rule 3). Session methods arrive
- * with the playground (milestone B4).
- */
+export interface StartSessionOptions {
+  /** The runtime agent and the exact version to run (sessions pin to it). */
+  agent: RuntimeAgentRef
+  environmentId: string
+  vaultIds: string[]
+  /** Hard spending cap in US cents; the runtime pauses the session when it is reached. */
+  budgetCents: number
+  title: string
+  metadata: Record<string, string>
+}
+
+/** The only way the platform reaches a model runtime (CLAUDE.md, rule 3). */
 export interface AgentRuntime {
   readonly provider: string
   /** Creates the runtime agent when `ref` is undefined, otherwise updates it in place. */
@@ -73,6 +81,24 @@ export interface AgentRuntime {
     existingId?: string,
   ): Promise<string>
   deleteCredential(vault: RuntimeVaultRef, credentialId: string): Promise<void>
+
+  /** Returns the environment sessions run in, creating it when `existing` is undefined. */
+  ensureEnvironment(existing?: string): Promise<string>
+  startSession(options: StartSessionOptions): Promise<{ sessionId: string }>
+  sendMessage(sessionId: string, text: string): Promise<void>
+  decideTool(
+    sessionId: string,
+    toolCallId: string,
+    decision: "allow" | "deny",
+    denyMessage?: string,
+  ): Promise<void>
+  interrupt(sessionId: string): Promise<void>
+  /** The session's full history, oldest first. */
+  listEvents(sessionId: string): Promise<RunEvent[]>
+  /** Live events from the moment of the call; ends when `signal` aborts. No replay. */
+  streamEvents(sessionId: string, signal: AbortSignal): AsyncIterable<RunEvent>
+  /** Cumulative usage and list cost of the session. */
+  getUsage(sessionId: string): Promise<RunUsage>
 }
 
 export class RuntimeError extends Error {

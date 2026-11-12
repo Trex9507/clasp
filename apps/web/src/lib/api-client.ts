@@ -101,6 +101,15 @@ export async function apiPost<S extends z.ZodType>(
   return parseBody(await send("POST", path, body, init), path, schema)
 }
 
+/** POST to an endpoint that answers 204 with no body, so there is nothing to validate. */
+export async function apiPostNoContent(
+  path: string,
+  body?: unknown,
+  init?: RequestInit,
+): Promise<void> {
+  await send("POST", path, body, init)
+}
+
 /** PATCH a JSON body and validate the response like `apiGet`. */
 export async function apiPatch<S extends z.ZodType>(
   path: string,

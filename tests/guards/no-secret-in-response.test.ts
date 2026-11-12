@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest"
 import type { ZodType } from "zod"
 import * as contract from "../../packages/shared/src/api.js"
 
-const SECRET_KEY = /secret|password|token|credential|api_?key|private_?key/i
+// Token-shaped names (token, accessToken, refresh_token), not usage counts like inputTokens.
+const SECRET_KEY =
+  /secret|password|credential|bearer|api_?key|private_?key|(^|access|refresh|auth|session|id)_?token$/i
 const ALLOWED_KEYS = new Set(["hasCredential"])
 
 function keysOf(schema: ZodType, path: string, out: string[]): void {

@@ -167,3 +167,62 @@ export const runtimeVaults = pgTable(
   },
   (t) => [primaryKey({ columns: [t.workspaceId, t.provider] })],
 )
+
+export const runStatus = pgEnum("run_status", [
+  "running",
+  "idle",
+  "awaiting_approval",
+  "budget_reached",
+  "ended",
+  "error",
+])
+
+export interface RunUsageRecord {
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheCreationTokens: number
+  costCents: number
+}
+
+// One playground (later: hosted) conversation with an agent. The usage ledger (CLAUDE.md, I5):
+// every run is attributed to a workspace, agent, version and user, which future billing and
+// creator revenue share build on.
+export const agentRuns = pgTable(
+  "agent_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    agentVersionId: uuid("agent_version_id")
+      .notNull()
+      .references(() => agentVersions.id),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    provider: text("provider").notNull(),
+    runtimeSessionId: text("runtime_session_id").notNull(),
+    status: runStatus("status").notNull().default("idle"),
+    usage: jsonb("usage").$type<RunUsageRecord>().notNull().default({
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+      costCents: 0,
+    }),
+    budgetCents: integer("budget_cents").notNull(),
+    ...timestamps,
+  },
+  (t) => [index().on(t.workspaceId, t.agentId, t.createdAt)],
+)
+
+// The runtime environment sessions run in; one per runtime provider, created on first use.
+export const runtimeEnvironments = pgTable("runtime_environments", {
+  provider: text("provider").primaryKey(),
+  environmentId: text("environment_id").notNull(),
+  createdAt: timestamps.createdAt,
+})
