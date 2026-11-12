@@ -5,3 +5,4 @@ contracts/*/lib
 contracts/*/out
 contracts/*/cache
 docs/simulation/*.py
+.claude/skills

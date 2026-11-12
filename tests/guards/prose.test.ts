@@ -36,6 +36,9 @@ const ALLOWED: Record<string, string> = {
   "tests/guards/prose.test.ts": "defines the patterns this guard looks for",
   "packages/verifier/src/rules.ts": "Italian stopwords are data for detectLanguage",
 }
+// Vendored third-party content is kept byte-identical to its verified upstream (see each
+// folder's SOURCE.md), so it is exempt rather than edited.
+const ALLOWED_PREFIXES = [".claude/skills/"]
 const EM_DASH = new RegExp(String.fromCharCode(0x2014))
 
 const BINARY = /\.(png|jpe?g|gif|ico|webp|woff2?|ttf|pdf|zip|lock)$/i
@@ -52,7 +55,13 @@ function trackedTextFiles(): string[] {
   return out
     .split("\0")
     .filter(Boolean)
-    .filter((f) => !BINARY.test(f) && !SKIPPED_FILES.has(f) && !(f in ALLOWED))
+    .filter(
+      (f) =>
+        !BINARY.test(f) &&
+        !SKIPPED_FILES.has(f) &&
+        !(f in ALLOWED) &&
+        !ALLOWED_PREFIXES.some((p) => f.startsWith(p)),
+    )
     .filter((f) => {
       try {
         return statSync(ROOT + f).isFile() // submodules show up as directories

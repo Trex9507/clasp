@@ -24,7 +24,8 @@ your recommendation. Do not work around a guard, and never weaken a test to make
 4. **English only, and never an em dash**, in every tracked text file: code, comments, prompts,
    UI copy, docs, commit messages and PR descriptions. Use a plain hyphen or restructure the
    sentence. _Enforced by: `tests/guards/prose.test.ts`, whose `ALLOWED` map names every file
-   exempted and why._
+   exempted and why. Vendored skills under `.claude/skills/` are exempt because they stay
+   byte-identical to their verified upstream; their style never overrides this rule._
 
 ## 1. Product context
 
@@ -112,7 +113,29 @@ CI (`.github/workflows/ci.yml`) runs all of the above plus a gitleaks secret sca
 - Skills and plugins are added only after a verification report (source, license, every file
   read, red flags) and explicit approval. Vendored skills carry a `SOURCE.md`.
 
-## 9. Conventions (not enforced)
+## 9. Skills, plugins and MCP servers
+
+Configured in `.claude/settings.json` (plugins from `claude-plugins-official`), `.mcp.json`
+(pinned MCP servers) and `.claude/skills/` (vendored skills, each with a `SOURCE.md`). When to
+reach for them:
+
+| Tool                                                                | Use it for                                                                |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `frontend-design` plugin                                            | new UI or reshaping existing UI                                           |
+| `react-best-practices` skill                                        | React performance and patterns (skip its Next.js server-only rules)       |
+| `minimalist-ui` skill                                               | opt-in only, by name; where it conflicts with our shadcn setup, ours wins |
+| `playwright` MCP (`.mcp.json`, pinned)                              | checking a UI change in a real browser                                    |
+| `pr-review-toolkit` plugin, `/code-review`                          | reviewing a change before opening a PR                                    |
+| `feature-dev` plugin                                                | planning and building a larger feature                                    |
+| `mcp-server-dev` plugin, `mcp-builder` skill                        | MCP connection and server work                                            |
+| `claude-api` skill (built in)                                       | anything touching `packages/runtime` or Claude models                     |
+| `typescript-lsp`, `claude-md-management`, `commit-commands` plugins | navigation, keeping this file current, commits                            |
+
+`commit-commands` can push and open a PR in one step (`/commit-push-pr`) and force-delete branches
+(`/clean_gone`): use those only when asked. Never add a skill, plugin or MCP server without a
+verification report and approval; pin every MCP server version.
+
+## 10. Conventions (not enforced)
 
 - Comments explain why, not what.
 - `.env.example` lists every key the code reads, with no values.
