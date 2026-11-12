@@ -31,6 +31,7 @@ apps/
 packages/
   shared/              API contracts, model catalog and languages shared by web and api
   runtime/             the AgentRuntime adapter: Claude Managed Agents, plus a simulated runtime
+  evals/               model evals of agent behavior (Braintrust Eval, regression baselines)
   escrow-mcp-server/   parked: MCP server for the escrow prototype
   verifier/            parked: acceptance-criteria verifier, owns the JobSpec schema
   provider-agents/     parked: provider agents for the escrow prototype
@@ -80,6 +81,18 @@ Every key is listed in [.env.example](.env.example). The ones that change what y
 Hosted agents run in Anthropic's cloud, so with a real API key their MCP servers must be reachable
 from the internet; a server on `localhost` only works with the simulated runtime.
 
+### Evals
+
+Evals measure how hosted agents behave (tool use, prompt-injection resistance, response
+language) and gate pull requests that could change it. They call Claude, so they need
+`ANTHROPIC_API_KEY` and stop at a budget (default $2 per run):
+
+```bash
+pnpm --filter @clasp/evals eval
+```
+
+See [docs/evals.md](docs/evals.md) for the method, the suites and every case.
+
 ### Contracts
 
 ```bash
@@ -96,6 +109,7 @@ cd contracts/escrow && forge build && forge test
 ## Documentation
 
 - [CLAUDE.md](CLAUDE.md): engineering rules and how each one is enforced.
+- [docs/evals.md](docs/evals.md): how agent behavior is evaluated, and every eval case.
 - [docs/architecture.md](docs/architecture.md): the escrow model, economics and risks.
 - [docs/escrow-prototype.md](docs/escrow-prototype.md): how to run the parked escrow prototype.
 - [docs/simulation/results.md](docs/simulation/results.md): the market simulation behind the fee and stake choices.

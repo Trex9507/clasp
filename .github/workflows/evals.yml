@@ -1,0 +1,49 @@
+name: evals
+
+# Model evals cost money per run, so they run only when agent-facing behavior can change:
+# the runtime adapter (prompts, tools, sessions), the model and language catalogs, agent and run
+# services, and the evals themselves. Run on demand from the Actions tab too.
+on:
+  pull_request:
+    paths:
+      - "packages/runtime/**"
+      - "packages/evals/**"
+      - "packages/shared/src/models.ts"
+      - "packages/shared/src/languages.ts"
+      - "apps/api/src/agents/**"
+      - "apps/api/src/runs/**"
+  workflow_dispatch:
+
+concurrency:
+  group: evals-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evals:
+    name: model evals (regression gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
+      EVAL_BUDGET_USD: "2"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Skip without a key
+        if: env.ANTHROPIC_API_KEY == ''
+        run: echo "::notice::Evals skipped - add the ANTHROPIC_API_KEY repository secret to run them."
+      - name: Run evals against the baselines
+        if: env.ANTHROPIC_API_KEY != ''
+        run: pnpm --filter @clasp/evals eval
+      - name: Keep per-case results for review
+        if: always() && env.ANTHROPIC_API_KEY != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: packages/evals/results/

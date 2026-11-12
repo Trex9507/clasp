@@ -5,7 +5,7 @@ Binding on every file in this repository. Read automatically by Claude Code.
 ## 0. How to read this file
 
 A rule belongs here only if one sentence says what breaks without it and this file names the
-check that catches it. Real guidance that no check can enforce goes in section 10, labelled as a
+check that catches it. Real guidance that no check can enforce goes in section 11, labelled as a
 convention. Never write a count in this file: name the list instead, because counts go stale.
 
 **If a task seems to require breaking a rule, stop and ask.** Name the decision, the options and
@@ -23,7 +23,8 @@ your recommendation. Do not work around a guard, and never weaken a test to make
    exempt), and the bearer-token test in `apps/api/src/mcp/mcp-connections.test.ts`._
 3. **The model runtime is reached only through `packages/runtime`.** _Enforced by: the
    `no-restricted-imports` rule in `eslint.config.js` (`@anthropic-ai/*` is allowed only in
-   `packages/runtime` and the parked `packages/provider-agents`)._
+   `packages/runtime`, the parked `packages/provider-agents`, and `packages/evals`, which calls
+   the Messages API to stub tools and to run the judge)._
 4. **English only, and never an em dash**, in every tracked text file: code, comments, prompts,
    UI copy, docs, commit messages and PR descriptions. Use a plain hyphen or restructure the
    sentence. _Enforced by: `tests/guards/prose.test.ts`, whose `ALLOWED` map names every file
@@ -166,7 +167,25 @@ reach for them:
 (`/clean_gone`): use those only when asked. Never add a skill, plugin or MCP server without a
 verification report and approval; pin every MCP server version.
 
-## 10. Conventions (not enforced)
+## 10. Evals
+
+`packages/evals` measures the agent behavior Clasp's code controls; see
+[docs/evals.md](docs/evals.md) for the method, the suites and every case.
+
+| Rule                                                                                                                                             | Enforced by                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| A change to agent-facing behavior (the runtime adapter, prompts, model or language catalogs, agent and run services) must not regress the suites | `.github/workflows/evals.yml` runs them against `packages/evals/baselines/` on such pull requests          |
+| A guardrail score (`no_forbidden_tools`, `no_canary`) may not drop at all; other scores may move within 0.05 of noise                            | `findRegressions` in `packages/evals/src/baseline.ts` and its test                                         |
+| A run never spends more than its budget (`EVAL_BUDGET_USD`)                                                                                      | `CostMeter` in `packages/evals/src/cost.ts` and its test                                                   |
+| Code scorers are calibrated on clear passes and fails before they grade anything                                                                 | `packages/evals/src/evals.test.ts`, run in every CI build                                                  |
+| The model under test never judges itself                                                                                                         | `JUDGE_MODEL` (Opus) differs from the platform default (`SUBJECT_MODEL`) in `packages/evals/src/config.ts` |
+
+Conventions that go with them (not enforced): every agent-behavior bug becomes a dataset case;
+change one variable per experiment; update a baseline only after reading the results that
+produced it, in the same pull request, saying why; calibrate a new judge criterion against a few
+hand-labelled replies before trusting it.
+
+## 11. Conventions (not enforced)
 
 - Branch names start with `feature/`, `chore/` or `fix/`.
 - Commits follow Conventional Commits; one PR per milestone; CI green before merge.

@@ -35,6 +35,7 @@ const ITALIAN = new RegExp(`\\b(${ITALIAN_WORDS.join("|")})\\b`, "i")
 const ALLOWED: Record<string, string> = {
   "tests/guards/prose.test.ts": "defines the patterns this guard looks for",
   "packages/verifier/src/rules.ts": "Italian stopwords are data for detectLanguage",
+  "packages/evals/src/evals.test.ts": "language-detection samples are non-English by design",
 }
 // Vendored third-party content is kept byte-identical to its verified upstream (see each
 // folder's SOURCE.md), so it is exempt rather than edited.

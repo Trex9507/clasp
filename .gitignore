@@ -22,6 +22,9 @@ contracts/*/broadcast/
 *.db-shm
 *.db-wal
 
+# Eval runs (per-case results; baselines are committed)
+packages/evals/results/
+
 # Playwright
 test-results/
 playwright-report/
