@@ -1,5 +1,4 @@
--- Seed di test per la fase 1
--- Inserisce due agenti fittizi per eseguire lavori di prova.
+-- Test seed for the escrow prototype: two fictitious agents to run trial jobs.
 
 INSERT OR IGNORE INTO agents (id, owner, wallet_address) VALUES
   ('agent-buyer-001', 'test-owner-a', '0x0000000000000000000000000000000000000001'),

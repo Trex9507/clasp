@@ -1,22 +1,22 @@
 """
-Simulazione dell'economia tra agenti AI — "camera di compensazione del lavoro".
+Simulation of the economy between AI agents: a "clearing house for agent work".
 
-Cosa simula (90 giorni, solo moneta finta):
-  - agenti FORNITORI (bravi, mediocri, truffatori) che accettano lavori
-  - agenti COMPRATORI che pubblicano lavori con un budget
-  - ESCROW: i soldi restano bloccati finché il lavoro non è verificato
-  - VERIFICA a 2 livelli: controllo automatico + revisione del compratore
-  - CONTESTAZIONI risolte da un arbitro AI (costo per la piattaforma)
-  - CAUZIONE (stake): il fornitore la deposita, perde una parte se consegna male
-  - REPUTAZIONE: i compratori scelgono i fornitori con lo storico migliore
-  - FEE della piattaforma trattenuta sul pagamento al fornitore
-  - NETTING: le transazioni sulla blockchain si chiudono in un lotto al giorno
+What it simulates (90 days, test money only):
+  - PROVIDER agents (good, mediocre, scammers) that accept jobs
+  - BUYER agents that post jobs with a budget
+  - ESCROW: the money stays locked until the work is verified
+  - 2-level VERIFICATION: automated check + buyer review
+  - DISPUTES settled by an AI arbiter (a cost for the platform)
+  - STAKE: the provider deposits it and loses part of it on bad deliveries
+  - REPUTATION: buyers pick the providers with the best track record
+  - Platform FEE withheld from the payment to the provider
+  - NETTING: on-chain transactions are settled in one batch per day
 
-Esecuzione:  python3 simulazione.py
-Nessuna libreria esterna: gira ovunque, costo zero.
+Run:  python3 simulate.py
+No external libraries: runs anywhere, zero cost.
 
-ATTENZIONE: le ipotesi in CONFIG sono stime ragionevoli, non dati reali.
-Servono a confrontare le regole tra loro, non a prevedere il fatturato.
+WARNING: the assumptions in CONFIG are reasonable estimates, not real data.
+They are meant to compare rules against each other, not to forecast revenue.
 """
 
 import math
@@ -25,320 +25,320 @@ import statistics
 from dataclasses import dataclass, field
 
 # --------------------------------------------------------------------------
-# IPOTESI (tutte modificabili)
+# ASSUMPTIONS (all adjustable)
 # --------------------------------------------------------------------------
 CONFIG = {
-    "giorni": 90,
-    "fornitori_iniziali": 40,
-    "compratori": 60,
-    "lavori_per_compratore_al_giorno": 2.0,
-    "valore_lavoro_mediano": 8.0,       # USDC
-    "valore_lavoro_dispersione": 0.8,   # lognormale
-    # tipi di fornitore: (quota, probabilità di consegnare bene, costo come % del valore)
-    "tipi": {
-        "bravo":      (0.55, 0.95, (0.30, 0.70)),
-        "mediocre":   (0.30, 0.70, (0.20, 0.60)),
-        "truffatore": (0.15, 0.05, (0.02, 0.05)),
+    "days": 90,
+    "initial_providers": 40,
+    "buyers": 60,
+    "jobs_per_buyer_per_day": 2.0,
+    "median_job_value": 8.0,          # USDC
+    "job_value_dispersion": 0.8,      # lognormal
+    # provider types: (share, probability of delivering good work, cost as % of value)
+    "types": {
+        "good":     (0.55, 0.95, (0.30, 0.70)),
+        "mediocre": (0.30, 0.70, (0.20, 0.60)),
+        "scammer":  (0.15, 0.05, (0.02, 0.05)),
     },
-    "verifica_automatica_scopre": 0.60,  # % di lavori scadenti bloccati in automatico
-    "compratore_scopre": 0.85,           # % dei restanti scadenti che il compratore contesta
-    "arbitro_accuratezza": 0.90,
-    "costo_arbitro_ai": 0.03,            # USDC per contestazione (chiamata a un modello)
-    "tassa_contestazione_min": 0.25,     # pagata da chi perde la contestazione
-    "tassa_contestazione_pct": 0.05,
-    "gas_per_tx": 0.005,                 # costo stimato di una transazione su Base
-    "costo_fisso_mensile": 25.0,         # server + servizi a piano gratuito
-    "nuovi_truffatori_al_giorno": 0.5,   # tentativi di ingresso
-    "nuovi_onesti_al_giorno": 0.3,
-    "sensibilita_truffatori_cauzione": 10.0,  # più è basso, più la cauzione li scoraggia
-    "sensibilita_onesti_cauzione": 150.0,
-    "abbandono_compratore_per_fregatura": 0.15,
-    "giorni_per_valutare_profitto": 14,
-    # ALTERNATIVA ESTERNA: ogni compratore stima il rischio di farsi fregare pagando
-    # direttamente un agente (senza piattaforma). Usa la piattaforma solo se la fee
-    # costa meno di quel rischio. Nello scenario "paga prima" la frode reale è ~8%.
-    "rischio_percepito_min": 0.01,
-    "rischio_percepito_max": 0.12,
-    # quota della cauzione confiscata che va alla piattaforma (il resto rimborsa il compratore).
-    # Raccomandato 0: la piattaforma non deve guadagnare dal punire, solo dal lavoro che va bene.
-    "quota_piattaforma_cauzione": 0.0,
-    # REGOLE AGGIORNATE
-    "fee_minima": 0.05,                  # USDC per lavoro: copre verifica e gas sui lavori piccoli
-    "costo_verifica": 0.01,              # USDC per controllo automatico (regole + modello AI economico)
-    "revisione": True,                   # una correzione gratuita se i controlli automatici bocciano
-    "revisione_min_lavori_ok": 0,        # lavori riusciti necessari per avere diritto alla revisione
-    "costo_correzione_pct": 0.3,         # quanto costa al fornitore correggere (% del suo costo)
-    "quota_lavori_da_referral": 0.4,     # ipotesi: 40% dei lavori arriva da agenti portati con referral
-    "quota_referral": 0.005,             # 0,5 punti di fee a chi ha portato l'agente
+    "auto_check_catch_rate": 0.60,    # % of bad jobs blocked automatically
+    "buyer_catch_rate": 0.85,         # % of the remaining bad jobs the buyer disputes
+    "arbiter_accuracy": 0.90,
+    "ai_arbiter_cost": 0.03,          # USDC per dispute (one model call)
+    "dispute_fee_min": 0.25,          # paid by whoever loses the dispute
+    "dispute_fee_pct": 0.05,
+    "gas_per_tx": 0.005,              # estimated cost of one transaction on Base
+    "monthly_fixed_cost": 25.0,       # server + free-tier services
+    "new_scammers_per_day": 0.5,      # entry attempts
+    "new_honest_per_day": 0.3,
+    "scammer_stake_sensitivity": 10.0,  # the lower it is, the more the stake deters them
+    "honest_stake_sensitivity": 150.0,
+    "buyer_churn_after_scam": 0.15,
+    "days_to_assess_profit": 14,
+    # EXTERNAL ALTERNATIVE: each buyer estimates the risk of getting scammed when paying
+    # an agent directly (without the platform). It uses the platform only if the fee
+    # costs less than that risk. In the "pay first" scenario the actual fraud rate is ~8%.
+    "perceived_risk_min": 0.01,
+    "perceived_risk_max": 0.12,
+    # share of the forfeited stake that goes to the platform (the rest refunds the buyer).
+    # Recommended 0: the platform must not profit from punishing, only from work that goes well.
+    "platform_stake_share": 0.0,
+    # UPDATED RULES
+    "min_fee": 0.05,                  # USDC per job: covers verification and gas on small jobs
+    "verification_cost": 0.01,        # USDC per automated check (rules + cheap AI model)
+    "revision": True,                 # one free fix if the automated checks fail
+    "revision_min_ok_jobs": 0,        # successful jobs required to qualify for the revision
+    "fix_cost_pct": 0.3,              # what fixing costs the provider (% of its cost)
+    "referral_job_share": 0.4,        # assumption: 40% of jobs come from agents brought in by referral
+    "referral_share": 0.005,          # 0.5 fee points to whoever brought in the agent
 }
 
 
 @dataclass
-class Fornitore:
+class Provider:
     id: int
-    tipo: str
-    p_buono: float
-    costo_pct: float
-    cauzione: float
+    type: str
+    p_good: float
+    cost_pct: float
+    stake: float
     ok: int = 0
     ko: int = 0
-    attivo: bool = True
-    profitto_recente: list = field(default_factory=list)
+    active: bool = True
+    recent_profit: list = field(default_factory=list)
 
-    def reputazione(self) -> float:
-        # media bayesiana: un nuovo agente parte da 0,5
+    def reputation(self) -> float:
+        # Bayesian average: a new agent starts at 0.5
         return (self.ok + 1) / (self.ok + self.ko + 2)
 
 
 @dataclass
-class Compratore:
+class Buyer:
     id: int
-    rischio_percepito: float = 0.0
-    attivo: bool = True
+    perceived_risk: float = 0.0
+    active: bool = True
 
 
-def nuovo_fornitore(rnd, i, tipo, cauzione):
-    _, p, (cmin, cmax) = CONFIG["tipi"][tipo]
-    return Fornitore(i, tipo, p, rnd.uniform(cmin, cmax), cauzione)
+def new_provider(rnd, i, type_, stake):
+    _, p, (cmin, cmax) = CONFIG["types"][type_]
+    return Provider(i, type_, p, rnd.uniform(cmin, cmax), stake)
 
 
-def scegli_tipo(rnd):
+def pick_type(rnd):
     r, acc = rnd.random(), 0.0
-    for tipo, (quota, _, _) in CONFIG["tipi"].items():
-        acc += quota
+    for type_, (share, _, _) in CONFIG["types"].items():
+        acc += share
         if r <= acc:
-            return tipo
-    return "bravo"
+            return type_
+    return "good"
 
 
-def simula(fee: float, cauzione: float, escrow: bool = True, netting: bool = False, seed: int = 0):
+def simulate(fee: float, stake: float, escrow: bool = True, netting: bool = False, seed: int = 0):
     rnd = random.Random(seed)
     C = CONFIG
-    fornitori = [nuovo_fornitore(rnd, i, scegli_tipo(rnd), cauzione) for i in range(C["fornitori_iniziali"])]
-    compratori = [Compratore(i, rnd.uniform(C["rischio_percepito_min"], C["rischio_percepito_max"]))
-                  for i in range(C["compratori"])]
+    providers = [new_provider(rnd, i, pick_type(rnd), stake) for i in range(C["initial_providers"])]
+    buyers = [Buyer(i, rnd.uniform(C["perceived_risk_min"], C["perceived_risk_max"]))
+              for i in range(C["buyers"])]
 
-    m = dict(gmv=0.0, ricavi_fee=0.0, ricavi_contestazioni=0.0, ricavi_cauzioni=0.0,
-             costi_arbitro=0.0, costi_gas=0.0, perdite_compratori=0.0,
-             lavori_pubblicati=0, lavori_completati=0, lavori_senza_fornitore=0,
-             lavori_persi_per_fee=0, contestazioni=0, costi_verifica=0.0, costi_referral=0.0,
-             revisioni=0, revisioni_riuscite=0)
+    m = dict(gmv=0.0, fee_revenue=0.0, dispute_revenue=0.0, stake_revenue=0.0,
+             arbiter_costs=0.0, gas_costs=0.0, buyer_losses=0.0,
+             jobs_posted=0, jobs_completed=0, jobs_without_provider=0,
+             jobs_lost_to_fee=0, disputes=0, verification_costs=0.0, referral_costs=0.0,
+             revisions=0, successful_revisions=0)
 
-    for giorno in range(C["giorni"]):
-        # ingresso di nuovi agenti: la cauzione scoraggia soprattutto i truffatori
-        if rnd.random() < C["nuovi_truffatori_al_giorno"] * math.exp(-cauzione / C["sensibilita_truffatori_cauzione"]):
-            fornitori.append(nuovo_fornitore(rnd, len(fornitori), "truffatore", cauzione))
-        if rnd.random() < C["nuovi_onesti_al_giorno"] * math.exp(-cauzione / C["sensibilita_onesti_cauzione"]):
-            fornitori.append(nuovo_fornitore(rnd, len(fornitori), rnd.choice(["bravo", "mediocre"]), cauzione))
+    for day in range(C["days"]):
+        # new agents entering: the stake deters scammers above all
+        if rnd.random() < C["new_scammers_per_day"] * math.exp(-stake / C["scammer_stake_sensitivity"]):
+            providers.append(new_provider(rnd, len(providers), "scammer", stake))
+        if rnd.random() < C["new_honest_per_day"] * math.exp(-stake / C["honest_stake_sensitivity"]):
+            providers.append(new_provider(rnd, len(providers), rnd.choice(["good", "mediocre"]), stake))
 
-        agenti_attivi_oggi = set()
-        for comp in compratori:
-            if not comp.attivo:
+        agents_active_today = set()
+        for buyer in buyers:
+            if not buyer.active:
                 continue
-            n_lavori = sum(1 for _ in range(4) if rnd.random() < C["lavori_per_compratore_al_giorno"] / 4)
-            for _ in range(n_lavori):
-                valore = C["valore_lavoro_mediano"] * math.exp(rnd.gauss(0, C["valore_lavoro_dispersione"]))
-                m["lavori_pubblicati"] += 1
-                # il compratore va altrove se la fee costa più del rischio che evita
-                if escrow and fee > comp.rischio_percepito:
-                    m["lavori_persi_per_fee"] += 1
+            n_jobs = sum(1 for _ in range(4) if rnd.random() < C["jobs_per_buyer_per_day"] / 4)
+            for _ in range(n_jobs):
+                value = C["median_job_value"] * math.exp(rnd.gauss(0, C["job_value_dispersion"]))
+                m["jobs_posted"] += 1
+                # the buyer goes elsewhere if the fee costs more than the risk it avoids
+                if escrow and fee > buyer.perceived_risk:
+                    m["jobs_lost_to_fee"] += 1
                     continue
-                fee_importo = max(valore * fee, C["fee_minima"]) if escrow else valore * fee
-                da_referral = rnd.random() < C["quota_lavori_da_referral"]
-                # accetta solo chi ci guadagna dopo la fee
-                candidati = [f for f in fornitori if f.attivo and valore - fee_importo > valore * f.costo_pct]
-                if not candidati:
-                    m["lavori_senza_fornitore"] += 1
+                fee_amount = max(value * fee, C["min_fee"]) if escrow else value * fee
+                from_referral = rnd.random() < C["referral_job_share"]
+                # only providers who still profit after the fee accept
+                candidates = [p for p in providers if p.active and value - fee_amount > value * p.cost_pct]
+                if not candidates:
+                    m["jobs_without_provider"] += 1
                     continue
-                # scelta per reputazione, con un po' di esplorazione per i nuovi
-                pesi = [math.exp(8 * f.reputazione()) for f in candidati]
-                f = rnd.choices(candidati, weights=pesi)[0]
-                agenti_attivi_oggi.update({("c", comp.id), ("f", f.id)})
+                # choice by reputation, with some exploration for newcomers
+                weights = [math.exp(8 * p.reputation()) for p in candidates]
+                f = rnd.choices(candidates, weights=weights)[0]
+                agents_active_today.update({("b", buyer.id), ("p", f.id)})
 
-                buono = rnd.random() < f.p_buono
-                costo_f = valore * f.costo_pct
+                good = rnd.random() < f.p_good
+                provider_cost = value * f.cost_pct
 
                 if not escrow:
-                    # modello "paga prima" (x402 puro): nessuna protezione
-                    m["gmv"] += valore
-                    m["ricavi_fee"] += fee_importo
-                    m["lavori_completati"] += 1
-                    f.profitto_recente.append(valore - fee_importo - costo_f)
-                    if buono:
+                    # "pay first" model (plain x402): no protection
+                    m["gmv"] += value
+                    m["fee_revenue"] += fee_amount
+                    m["jobs_completed"] += 1
+                    f.recent_profit.append(value - fee_amount - provider_cost)
+                    if good:
                         f.ok += 1
                     else:
                         f.ko += 1
-                        m["perdite_compratori"] += valore
-                        if rnd.random() < C["abbandono_compratore_per_fregatura"]:
-                            comp.attivo = False
+                        m["buyer_losses"] += value
+                        if rnd.random() < C["buyer_churn_after_scam"]:
+                            buyer.active = False
                     continue
 
-                # --- con escrow ---
-                m["costi_verifica"] += C["costo_verifica"]
+                # --- with escrow ---
+                m["verification_costs"] += C["verification_cost"]
 
-                def arbitrato():
-                    """Contestazione decisa dall'arbitro AI. True = vince il compratore."""
-                    m["contestazioni"] += 1
-                    m["costi_arbitro"] += C["costo_arbitro_ai"]
-                    if rnd.random() < C["arbitro_accuratezza"]:
-                        tassa = max(C["tassa_contestazione_min"], valore * C["tassa_contestazione_pct"])
-                        m["ricavi_contestazioni"] += tassa
-                        f.profitto_recente.append(-tassa)
+                def arbitration():
+                    """Dispute decided by the AI arbiter. True = the buyer wins."""
+                    m["disputes"] += 1
+                    m["arbiter_costs"] += C["ai_arbiter_cost"]
+                    if rnd.random() < C["arbiter_accuracy"]:
+                        dispute_fee = max(C["dispute_fee_min"], value * C["dispute_fee_pct"])
+                        m["dispute_revenue"] += dispute_fee
+                        f.recent_profit.append(-dispute_fee)
                         return True
                     return False
 
-                bloccato = False
-                if not buono:
-                    if rnd.random() < C["verifica_automatica_scopre"]:
-                        if C["revisione"] and f.ok >= C["revisione_min_lavori_ok"]:
-                            # REVISIONE GRATUITA: il fornitore corregge una volta,
-                            # il secondo controllo lo paga la piattaforma
-                            m["revisioni"] += 1
-                            m["costi_verifica"] += C["costo_verifica"]
-                            costo_f += valore * f.costo_pct * C["costo_correzione_pct"]
-                            buono = rnd.random() < f.p_buono
-                            if buono:
-                                m["revisioni_riuscite"] += 1
-                            elif rnd.random() < C["verifica_automatica_scopre"]:
-                                bloccato = arbitrato()
-                            elif rnd.random() < C["compratore_scopre"]:
-                                bloccato = arbitrato()
+                blocked = False
+                if not good:
+                    if rnd.random() < C["auto_check_catch_rate"]:
+                        if C["revision"] and f.ok >= C["revision_min_ok_jobs"]:
+                            # FREE REVISION: the provider fixes the work once,
+                            # the platform pays for the second check
+                            m["revisions"] += 1
+                            m["verification_costs"] += C["verification_cost"]
+                            provider_cost += value * f.cost_pct * C["fix_cost_pct"]
+                            good = rnd.random() < f.p_good
+                            if good:
+                                m["successful_revisions"] += 1
+                            elif rnd.random() < C["auto_check_catch_rate"]:
+                                blocked = arbitration()
+                            elif rnd.random() < C["buyer_catch_rate"]:
+                                blocked = arbitration()
                         else:
-                            bloccato = True
-                    elif rnd.random() < C["compratore_scopre"]:
-                        bloccato = arbitrato()
-                if bloccato:
+                            blocked = True
+                    elif rnd.random() < C["buyer_catch_rate"]:
+                        blocked = arbitration()
+                if blocked:
                     f.ko += 1
-                    f.profitto_recente.append(-costo_f)
-                    # cauzione: si perde l'equivalente del valore del lavoro (rimborso extra al compratore)
-                    taglio = min(f.cauzione, valore)
-                    f.cauzione -= taglio
-                    f.profitto_recente.append(-taglio)
-                    m["ricavi_cauzioni"] += taglio * C["quota_piattaforma_cauzione"]
-                    if cauzione > 0 and f.cauzione < cauzione * 0.5:
-                        # sotto metà cauzione: gli onesti ricaricano, i truffatori spariscono
-                        if f.tipo == "truffatore":
-                            f.attivo = False
+                    f.recent_profit.append(-provider_cost)
+                    # stake: the provider loses the equivalent of the job value (extra refund to the buyer)
+                    cut = min(f.stake, value)
+                    f.stake -= cut
+                    f.recent_profit.append(-cut)
+                    m["stake_revenue"] += cut * C["platform_stake_share"]
+                    if stake > 0 and f.stake < stake * 0.5:
+                        # below half the stake: honest providers top up, scammers disappear
+                        if f.type == "scammer":
+                            f.active = False
                         else:
-                            f.cauzione = cauzione
+                            f.stake = stake
                     if not netting:
-                        m["costi_gas"] += 2 * C["gas_per_tx"]
+                        m["gas_costs"] += 2 * C["gas_per_tx"]
                     continue
 
-                # pagamento rilasciato
-                m["gmv"] += valore
-                m["ricavi_fee"] += fee_importo
-                if da_referral:
-                    m["costi_referral"] += valore * C["quota_referral"]
-                m["lavori_completati"] += 1
-                f.profitto_recente.append(valore - fee_importo - costo_f)
-                if buono:
+                # payment released
+                m["gmv"] += value
+                m["fee_revenue"] += fee_amount
+                if from_referral:
+                    m["referral_costs"] += value * C["referral_share"]
+                m["jobs_completed"] += 1
+                f.recent_profit.append(value - fee_amount - provider_cost)
+                if good:
                     f.ok += 1
                 else:
-                    f.ko += 1  # scadente ma passato: danno per il compratore
-                    m["perdite_compratori"] += valore
-                    if rnd.random() < C["abbandono_compratore_per_fregatura"]:
-                        comp.attivo = False
+                    f.ko += 1  # bad but it got through: a loss for the buyer
+                    m["buyer_losses"] += value
+                    if rnd.random() < C["buyer_churn_after_scam"]:
+                        buyer.active = False
                 if not netting:
-                    m["costi_gas"] += 2 * C["gas_per_tx"]
+                    m["gas_costs"] += 2 * C["gas_per_tx"]
 
         if netting:
-            # un solo regolamento al giorno per ogni agente che ha lavorato
-            m["costi_gas"] += len(agenti_attivi_oggi) * C["gas_per_tx"]
+            # a single settlement per day for each agent that worked
+            m["gas_costs"] += len(agents_active_today) * C["gas_per_tx"]
 
-        # i fornitori onesti che non guadagnano abbandonano
-        if giorno % C["giorni_per_valutare_profitto"] == C["giorni_per_valutare_profitto"] - 1:
-            for f in fornitori:
-                if f.attivo and f.profitto_recente and sum(f.profitto_recente) <= 0 and f.tipo != "truffatore":
-                    f.attivo = False
-                f.profitto_recente = []
+        # honest providers that do not make money drop out
+        if day % C["days_to_assess_profit"] == C["days_to_assess_profit"] - 1:
+            for f in providers:
+                if f.active and f.recent_profit and sum(f.recent_profit) <= 0 and f.type != "scammer":
+                    f.active = False
+                f.recent_profit = []
 
-    mesi = C["giorni"] / 30
-    m["costi_fissi"] = C["costo_fisso_mensile"] * mesi
-    m["ricavi_totali"] = m["ricavi_fee"] + m["ricavi_contestazioni"] + m["ricavi_cauzioni"]
-    costi_variabili = m["costi_arbitro"] + m["costi_gas"] + m["costi_verifica"] + m["costi_referral"]
-    m["utile_netto"] = m["ricavi_totali"] - costi_variabili - m["costi_fissi"]
-    m["utile_mensile"] = m["utile_netto"] / mesi
-    m["perdite_pct_gmv"] = 100 * m["perdite_compratori"] / m["gmv"] if m["gmv"] else 0
-    m["tasso_completamento"] = 100 * m["lavori_completati"] / m["lavori_pubblicati"]
-    m["persi_per_fee_pct"] = 100 * m["lavori_persi_per_fee"] / m["lavori_pubblicati"]
-    m["quota_ricavi_cauzioni"] = 100 * m["ricavi_cauzioni"] / m["ricavi_totali"] if m["ricavi_totali"] else 0
-    m["onesti_attivi"] = sum(1 for f in fornitori if f.attivo and f.tipo != "truffatore")
-    m["truffatori_attivi"] = sum(1 for f in fornitori if f.attivo and f.tipo == "truffatore")
-    m["compratori_attivi"] = sum(1 for c in compratori if c.attivo)
-    m["margine_per_lavoro"] = (m["ricavi_totali"] - costi_variabili) / max(1, m["lavori_completati"])
+    months = C["days"] / 30
+    m["fixed_costs"] = C["monthly_fixed_cost"] * months
+    m["total_revenue"] = m["fee_revenue"] + m["dispute_revenue"] + m["stake_revenue"]
+    variable_costs = m["arbiter_costs"] + m["gas_costs"] + m["verification_costs"] + m["referral_costs"]
+    m["net_profit"] = m["total_revenue"] - variable_costs - m["fixed_costs"]
+    m["monthly_profit"] = m["net_profit"] / months
+    m["losses_pct_gmv"] = 100 * m["buyer_losses"] / m["gmv"] if m["gmv"] else 0
+    m["completion_rate"] = 100 * m["jobs_completed"] / m["jobs_posted"]
+    m["lost_to_fee_pct"] = 100 * m["jobs_lost_to_fee"] / m["jobs_posted"]
+    m["stake_revenue_share"] = 100 * m["stake_revenue"] / m["total_revenue"] if m["total_revenue"] else 0
+    m["active_honest"] = sum(1 for f in providers if f.active and f.type != "scammer")
+    m["active_scammers"] = sum(1 for f in providers if f.active and f.type == "scammer")
+    m["active_buyers"] = sum(1 for b in buyers if b.active)
+    m["margin_per_job"] = (m["total_revenue"] - variable_costs) / max(1, m["jobs_completed"])
     return m
 
 
-def media(fee, cauzione, escrow=True, netting=False, semi=8):
-    risultati = [simula(fee, cauzione, escrow, netting, seed=s) for s in range(semi)]
-    return {k: statistics.mean(r[k] for r in risultati) for k in risultati[0]}
+def mean(fee, stake, escrow=True, netting=False, seeds=8):
+    results = [simulate(fee, stake, escrow, netting, seed=s) for s in range(seeds)]
+    return {k: statistics.mean(r[k] for r in results) for k in results[0]}
 
 
-def stampa_riga(nome, r):
-    print(f"{nome:<26} GMV {r['gmv']:>8.0f}  utile/mese {r['utile_mensile']:>7.1f}  "
-          f"margine/lavoro {r['margine_per_lavoro']:>5.3f}  perdite {r['perdite_pct_gmv']:>5.1f}%  "
-          f"completati {r['tasso_completamento']:>5.1f}%  persi x fee {r['persi_per_fee_pct']:>5.1f}%  "
-          f"da cauzioni {r['quota_ricavi_cauzioni']:>4.1f}%  compratori {r['compratori_attivi']:>4.1f}  "
-          f"onesti {r['onesti_attivi']:>4.1f}  truffatori {r['truffatori_attivi']:>4.1f}")
+def print_row(name, r):
+    print(f"{name:<26} GMV {r['gmv']:>8.0f}  profit/month {r['monthly_profit']:>7.1f}  "
+          f"margin/job {r['margin_per_job']:>5.3f}  losses {r['losses_pct_gmv']:>5.1f}%  "
+          f"completed {r['completion_rate']:>5.1f}%  lost to fee {r['lost_to_fee_pct']:>5.1f}%  "
+          f"from stakes {r['stake_revenue_share']:>4.1f}%  buyers {r['active_buyers']:>4.1f}  "
+          f"honest {r['active_honest']:>4.1f}  scammers {r['active_scammers']:>4.1f}")
 
 
-def con(chiave, valore, fn):
-    """Esegue fn con un'ipotesi di CONFIG cambiata temporaneamente."""
-    vecchio = CONFIG[chiave]
-    CONFIG[chiave] = valore
+def with_config(key, value, fn):
+    """Runs fn with one CONFIG assumption temporarily changed."""
+    old = CONFIG[key]
+    CONFIG[key] = value
     try:
         return fn()
     finally:
-        CONFIG[chiave] = vecchio
+        CONFIG[key] = old
 
 
 if __name__ == "__main__":
-    FEE, CAU = 0.025, 5   # regole di lancio
+    FEE, STAKE = 0.025, 5   # launch rules
 
-    print("=== 1. Escrow contro 'paga prima' (fee 2,5%) ===")
-    stampa_riga("Paga prima (x402 puro)", media(FEE, 0, escrow=False))
-    stampa_riga("Escrow, senza cauzione", media(FEE, 0))
-    stampa_riga("Escrow + cauzione 5", media(FEE, 5))
-    stampa_riga("Escrow + cauzione 20", media(FEE, 20))
+    print("=== 1. Escrow vs 'pay first' (fee 2.5%) ===")
+    print_row("Pay first (plain x402)", mean(FEE, 0, escrow=False))
+    print_row("Escrow, no stake", mean(FEE, 0))
+    print_row("Escrow + stake 5", mean(FEE, 5))
+    print_row("Escrow + stake 20", mean(FEE, 20))
 
-    print("\n=== 2. Revisione gratuita (fee 2,5%, cauzione 5) ===")
-    senza = con("revisione", False, lambda: media(FEE, CAU))
-    stampa_riga("Senza revisione", senza)
-    base = media(FEE, CAU)
-    stampa_riga("Con revisione gratuita", base)
-    stampa_riga("Revisione dopo 10 lavori ok", con("revisione_min_lavori_ok", 10, lambda: media(FEE, CAU)))
-    print(f"   revisioni al mese: {base['revisioni']/3:.0f}, riuscite: {100*base['revisioni_riuscite']/max(1,base['revisioni']):.0f}%, "
-          f"costo verifiche al mese: {base['costi_verifica']/3:.1f} USDC")
+    print("\n=== 2. Free revision (fee 2.5%, stake 5) ===")
+    no_revision = with_config("revision", False, lambda: mean(FEE, STAKE))
+    print_row("No revision", no_revision)
+    base = mean(FEE, STAKE)
+    print_row("With free revision", base)
+    print_row("Revision after 10 ok jobs", with_config("revision_min_ok_jobs", 10, lambda: mean(FEE, STAKE)))
+    print(f"   revisions per month: {base['revisions']/3:.0f}, successful: {100*base['successful_revisions']/max(1,base['revisions']):.0f}%, "
+          f"verification cost per month: {base['verification_costs']/3:.1f} USDC")
 
-    print("\n=== 3. Referral (fee 2,5%, cauzione 5) ===")
-    stampa_riga("Nessun lavoro da referral", con("quota_lavori_da_referral", 0.0, lambda: media(FEE, CAU)))
-    stampa_riga("40% da referral", base)
-    stampa_riga("100% da referral", con("quota_lavori_da_referral", 1.0, lambda: media(FEE, CAU)))
+    print("\n=== 3. Referral (fee 2.5%, stake 5) ===")
+    print_row("No referral jobs", with_config("referral_job_share", 0.0, lambda: mean(FEE, STAKE)))
+    print_row("40% from referral", base)
+    print_row("100% from referral", with_config("referral_job_share", 1.0, lambda: mean(FEE, STAKE)))
 
-    print("\n=== 4. Netting (fee 2,5%, cauzione 5) ===")
-    stampa_riga("Senza netting", base)
-    stampa_riga("Con netting", media(FEE, CAU, netting=True))
+    print("\n=== 4. Netting (fee 2.5%, stake 5) ===")
+    print_row("No netting", base)
+    print_row("With netting", mean(FEE, STAKE, netting=True))
 
-    print("\n=== 5. Livello della fee (cauzione 5, regole attuali) ===")
-    griglia = []
+    print("\n=== 5. Fee level (stake 5, current rules) ===")
+    grid = []
     for fee in [0.005, 0.01, 0.02, 0.025, 0.03, 0.04, 0.05, 0.08]:
-        r = media(fee, CAU)
-        griglia.append((fee, r))
-        stampa_riga(f"fee {fee*100:.1f}%", r)
+        r = mean(fee, STAKE)
+        grid.append((fee, r))
+        print_row(f"fee {fee*100:.1f}%", r)
 
-    print("\n=== 6. Costi variabili per lavoro e sostenibilità degli sconti ===")
-    costo_var = (base["costi_arbitro"] + base["costi_gas"] + base["costi_verifica"]) / base["lavori_completati"]
-    valore_medio = base["gmv"] / base["lavori_completati"]
-    print(f"   valore medio lavoro {valore_medio:.2f} USDC, costo variabile medio {costo_var:.3f} USDC per lavoro")
-    for f_sc in [0.025, 0.02, 0.015]:
-        netto = valore_medio * (f_sc - CONFIG["quota_referral"]) - costo_var
-        print(f"   fee {f_sc*100:.1f}% con referral attivo -> margine medio {netto:.3f} USDC per lavoro")
+    print("\n=== 6. Variable costs per job and sustainability of discounts ===")
+    var_cost = (base["arbiter_costs"] + base["gas_costs"] + base["verification_costs"]) / base["jobs_completed"]
+    avg_value = base["gmv"] / base["jobs_completed"]
+    print(f"   average job value {avg_value:.2f} USDC, average variable cost {var_cost:.3f} USDC per job")
+    for discounted_fee in [0.025, 0.02, 0.015]:
+        net = avg_value * (discounted_fee - CONFIG["referral_share"]) - var_cost
+        print(f"   fee {discounted_fee*100:.1f}% with referral active -> average margin {net:.3f} USDC per job")
 
-    print("\n=== 7. Configurazione di lancio e scala ===")
+    print("\n=== 7. Launch configuration and scale ===")
     r = base
-    print(f"fee 2,5%, cauzione 5 -> utile {r['utile_mensile']:.0f} USDC/mese, margine {r['margine_per_lavoro']:.3f} USDC/lavoro, "
-          f"lavori persi per la fee {r['persi_per_fee_pct']:.0f}%, perdite compratori {r['perdite_pct_gmv']:.1f}%")
-    for lavori_giorno in [100, 300, 1_000, 10_000]:
-        utile = lavori_giorno * 30 * r["margine_per_lavoro"] - CONFIG["costo_fisso_mensile"]
-        print(f"{lavori_giorno:>7} lavori completati/giorno -> ~{utile:>9,.0f} USDC/mese")
+    print(f"fee 2.5%, stake 5 -> profit {r['monthly_profit']:.0f} USDC/month, margin {r['margin_per_job']:.3f} USDC/job, "
+          f"jobs lost to fee {r['lost_to_fee_pct']:.0f}%, buyer losses {r['losses_pct_gmv']:.1f}%")
+    for jobs_per_day in [100, 300, 1_000, 10_000]:
+        profit = jobs_per_day * 30 * r["margin_per_job"] - CONFIG["monthly_fixed_cost"]
+        print(f"{jobs_per_day:>7} completed jobs/day -> ~{profit:>9,.0f} USDC/month")

@@ -1,77 +1,100 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { callMcp } from "./client.js";
+import Anthropic from "@anthropic-ai/sdk"
+import { callMcp } from "./client.js"
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+export type JobType = "listing_copy" | "translation" | "competitor_research"
+
+// Providers do bounded, high-volume work, so they default to the current Haiku.
+export const DEFAULT_PROVIDER_MODEL = "claude-haiku-5-5"
 
 export interface AgentConfig {
-  agentId: string;
-  tipo: "copy_inserzione" | "traduzione" | "ricerca_competitor";
-  systemPrompt: string;
+  agentId: string
+  jobType: JobType
+  systemPrompt: string
+  /** Overrides CLASP_PROVIDER_MODEL and the default. */
+  model?: string
+  /** Injectable for tests; created lazily otherwise. */
+  client?: Anthropic
+}
+
+interface DeliveryResult {
+  verification_passed: boolean
+  needs_revision: boolean
 }
 
 export class BaseAgent {
-  constructor(protected config: AgentConfig) {}
+  private client: Anthropic | undefined
 
-  /** Prende un lavoro aperto compatibile e lo completa. */
-  async run(jobId: string, specJson: Record<string, unknown>): Promise<void> {
-    console.log(`[${this.config.tipo}] Accetto lavoro ${jobId}`);
+  constructor(protected config: AgentConfig) {
+    this.client = config.client
+  }
 
-    // 1. prendi il lavoro
-    await callMcp("clasp_accept", {
-      job_id: jobId,
-      provider_id: this.config.agentId,
-    });
+  get model(): string {
+    return this.config.model ?? process.env.CLASP_PROVIDER_MODEL ?? DEFAULT_PROVIDER_MODEL
+  }
 
-    // 2. genera il contenuto con Claude
-    const delivery = await this.generate(specJson);
+  private getClient(): Anthropic {
+    this.client ??= new Anthropic()
+    return this.client
+  }
 
-    // 3. consegna
-    const result = await callMcp("clasp_deliver", {
+  /** Takes an open job, completes it, and uses the free revision if verification fails once. */
+  async run(jobId: string, spec: Record<string, unknown>): Promise<void> {
+    const tag = `[${this.config.jobType}]`
+    console.log(`${tag} accepting job ${jobId}`)
+    await callMcp("clasp_accept", { job_id: jobId, provider_id: this.config.agentId })
+
+    const delivery = await this.generate(spec)
+    const result = (await callMcp("clasp_deliver", {
       job_id: jobId,
       provider_id: this.config.agentId,
       delivery_json: delivery,
-    }) as { verification_passed: boolean; needs_revision: boolean };
+    })) as DeliveryResult
 
     if (result.verification_passed) {
-      console.log(`[${this.config.tipo}] ✓ Lavoro ${jobId} completato e pagato`);
-      return;
+      console.log(`${tag} job ${jobId} completed and paid`)
+      return
     }
-
     if (result.needs_revision) {
-      console.log(`[${this.config.tipo}] Revisione gratuita per lavoro ${jobId}, riprovo...`);
-      const revised = await this.generate(specJson, true);
+      console.log(`${tag} free revision for job ${jobId}, retrying`)
+      const revised = await this.generate(spec, true)
       await callMcp("clasp_deliver", {
         job_id: jobId,
         provider_id: this.config.agentId,
         delivery_json: revised,
-      });
+      })
     }
   }
 
   protected async generate(
     spec: Record<string, unknown>,
-    isRevision = false
+    isRevision = false,
   ): Promise<Record<string, unknown>> {
     const prompt = isRevision
-      ? `Rigenera il lavoro seguente rispettando TUTTI i criteri. Revisione obbligatoria.\nSpec: ${JSON.stringify(spec)}`
-      : `Esegui il lavoro seguendo esattamente questi criteri:\n${JSON.stringify(spec, null, 2)}`;
+      ? `Redo the following job and meet EVERY criterion. This is the mandatory revision.\nSpec: ${JSON.stringify(spec)}`
+      : `Do the job and follow these criteria exactly:\n${JSON.stringify(spec, null, 2)}`
 
-    const msg = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 2048,
+    const message = await this.getClient().messages.create({
+      model: this.model,
+      max_tokens: 16000,
       system: this.config.systemPrompt,
       messages: [{ role: "user", content: prompt }],
-    });
+    })
 
-    const text = msg.content[0].type === "text" ? msg.content[0].text : "";
-
-    // prova a estrarre JSON dalla risposta
-    try {
-      const match = text.match(/```json\n?([\s\S]*?)\n?```/) ?? text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-      if (match) return JSON.parse(match[1] ?? match[0]) as Record<string, unknown>;
-    } catch {
-      // fallback: ritorna testo grezzo
-    }
-    return { testo: text };
+    // Thinking blocks can precede the answer, so look for the first text block.
+    const text = message.content.find((block) => block.type === "text")?.text ?? ""
+    return parseJsonReply(text)
   }
+}
+
+/** Extracts the JSON object from a model reply; falls back to the raw text. */
+export function parseJsonReply(text: string): Record<string, unknown> {
+  const match = text.match(/```json\n?([\s\S]*?)\n?```/) ?? text.match(/(\{[\s\S]*\})/)
+  if (match?.[1]) {
+    try {
+      return JSON.parse(match[1]) as Record<string, unknown>
+    } catch {
+      // Not valid JSON: fall through to the raw text.
+    }
+  }
+  return { text }
 }

@@ -1,4 +1,4 @@
--- Schema SQLite per fase 1 (rete di test, moneta finta)
+-- SQLite schema for the escrow prototype (testnet, play money)
 
 CREATE TABLE IF NOT EXISTS agents (
   id TEXT PRIMARY KEY,

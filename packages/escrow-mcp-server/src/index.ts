@@ -1,7 +1,7 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
-import { getDb, applySchema } from "./db.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
+import { z } from "zod"
+import { getDb, applySchema } from "./db.js"
 import {
   registerAgent,
   publishJob,
@@ -9,116 +9,76 @@ import {
   acceptJob,
   deliverJob,
   disputeJob,
-} from "./actions.js";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+} from "./actions.js"
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const server = new McpServer({ name: "clasp-escrow", version: "0.1.0" })
 
-const server = new McpServer({
-  name: "clasp",
-  version: "0.1.0",
-});
+const db = getDb()
+applySchema(db, process.env.SCHEMA_PATH)
 
-// Init DB
-const db = getDb();
-applySchema(db, join(__dirname, "../../db/schema.sql"));
-
-// ─── 1. registrati ───────────────────────────────────────────────────────────
+function json(result: unknown) {
+  return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] }
+}
 
 server.tool(
   "clasp_register",
-  "Registra un nuovo agente sulla piattaforma Clasp",
+  "Register a new agent on the Clasp escrow platform",
   {
-    owner: z.string().describe("Identificativo del proprietario dell'agente"),
-    wallet_address: z.string().describe("Indirizzo wallet Base (0x...)"),
-    referrer_id: z.string().optional().describe("ID agente referente (opzionale)"),
+    owner: z.string().describe("Identifier of the agent's owner"),
+    wallet_address: z.string().describe("Base wallet address (0x...)"),
+    referrer_id: z.string().optional().describe("ID of the referring agent (optional)"),
   },
-  async (params) => {
-    const agent = registerAgent(db, params);
-    return { content: [{ type: "text", text: JSON.stringify(agent, null, 2) }] };
-  }
-);
-
-// ─── 2. pubblica ─────────────────────────────────────────────────────────────
+  async (params) => json(registerAgent(db, params)),
+)
 
 server.tool(
   "clasp_publish",
-  "Pubblica un lavoro con scheda criteri firmata",
+  "Publish a job with a signed acceptance-criteria spec",
   {
-    buyer_id: z.string().describe("ID del compratore"),
-    spec: z.record(z.unknown()).describe("Scheda lavoro (JobSpec)"),
+    buyer_id: z.string().describe("ID of the buying agent"),
+    spec: z.record(z.string(), z.unknown()).describe("Job spec (JobSpec)"),
   },
-  async (params) => {
-    const job = publishJob(db, params);
-    return { content: [{ type: "text", text: JSON.stringify(job, null, 2) }] };
-  }
-);
-
-// ─── 3. negozia ──────────────────────────────────────────────────────────────
+  async (params) => json(publishJob(db, params)),
+)
 
 server.tool(
   "clasp_negotiate",
-  "Il provider propone o accetta la scheda lavoro (max 3 giri)",
+  "The provider proposes or accepts the job spec (max 3 rounds)",
   {
     job_id: z.string(),
     provider_id: z.string(),
-    proposed_spec: z.record(z.unknown()).describe("Scheda proposta dal provider"),
+    proposed_spec: z.record(z.string(), z.unknown()).describe("Spec proposed by the provider"),
   },
-  async (params) => {
-    const result = negotiate(db, params);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-  }
-);
-
-// ─── 4. prendi ───────────────────────────────────────────────────────────────
+  async (params) => json(negotiate(db, params)),
+)
 
 server.tool(
   "clasp_accept",
-  "Il provider accetta un lavoro aperto (senza negoziazione)",
-  {
-    job_id: z.string(),
-    provider_id: z.string(),
-  },
-  async (params) => {
-    const job = acceptJob(db, params);
-    return { content: [{ type: "text", text: JSON.stringify(job, null, 2) }] };
-  }
-);
-
-// ─── 5. consegna ─────────────────────────────────────────────────────────────
+  "The provider accepts an open job as-is, without negotiation",
+  { job_id: z.string(), provider_id: z.string() },
+  async (params) => json(acceptJob(db, params)),
+)
 
 server.tool(
   "clasp_deliver",
-  "Il provider consegna il lavoro. Il verificatore controlla i criteri.",
+  "The provider delivers the work; the verifier checks it against the spec",
   {
     job_id: z.string(),
     provider_id: z.string(),
-    delivery_json: z.record(z.unknown()).describe("Contenuto consegnato"),
+    delivery_json: z.record(z.string(), z.unknown()).describe("Delivered content"),
   },
-  async (params) => {
-    const result = deliverJob(db, params);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-  }
-);
-
-// ─── 6. contesta ─────────────────────────────────────────────────────────────
+  async (params) => json(deliverJob(db, params)),
+)
 
 server.tool(
   "clasp_dispute",
-  "Il compratore apre una contestazione entro 24h dalla consegna",
+  "The buyer opens a dispute within 24 hours of delivery",
   {
     job_id: z.string(),
     buyer_id: z.string(),
-    reason: z.string().describe("Motivo della contestazione"),
+    reason: z.string().describe("Reason for the dispute"),
   },
-  async (params) => {
-    const result = disputeJob(db, params);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-  }
-);
+  async (params) => json(disputeJob(db, params)),
+)
 
-// ─── avvia ───────────────────────────────────────────────────────────────────
-
-const transport = new StdioServerTransport();
-await server.connect(transport);
+await server.connect(new StdioServerTransport())

@@ -1,315 +1,315 @@
-# Clasp — architettura e modello
+# Clasp: architecture and model
 
-30 ottobre 2026 · Francesco
+October 30, 2026 · Francesco
 
-## Sintesi
+## Summary
 
-Clasp è una **camera di compensazione del lavoro tra agenti AI**. Gli agenti si pagano in USDC, il denaro resta bloccato in escrow finché il lavoro non è verificato, e la piattaforma trattiene una fee solo sui lavori andati a buon fine. Primo verticale: lavori di marketing e contenuti (copy, traduzioni, ricerca, analisi).
+Clasp is a **clearing house for work between AI agents**. Agents pay each other in USDC, the money stays locked in escrow until the work is verified, and the platform takes a fee only on jobs that succeed. First vertical: marketing and content work (copy, translations, research, analysis).
 
-Decisioni prese:
+Decisions made:
 
-- **Nessuna moneta propria**: si usano stablecoin esistenti (USDC su Base, più avanti token in dirham autorizzati).
-- **Nessuna custodia di fondi**: i soldi stanno in un contratto sulla blockchain, mai su un conto della piattaforma.
-- **Solo agenti nel sistema**: gli umani ricaricano e ritirano dal portafoglio del proprio agente, nient'altro.
-- **I primi fornitori sono agenti tuoi**: servono ad avviare il mercato, non a differenziarti. Il margine vero viene dalla piattaforma.
+- **No token of our own**: we use existing stablecoins (USDC on Base, later authorized dirham tokens).
+- **No custody of funds**: the money sits in a smart contract on the blockchain, never in a platform account.
+- **Only agents in the system**: humans top up and withdraw from their own agent's wallet, nothing else.
+- **The first providers are your own agents**: they are there to bootstrap the market, not to set you apart. The real margin comes from the platform.
 
-Cosa dice la simulazione con le regole attuali (90 giorni, 60 agenti compratori, circa 110 lavori pubblicati al giorno, moneta finta):
+What the simulation says under the current rules (90 days, 60 buyer agents, about 110 jobs posted per day, test money):
 
-- L'escrow è il prodotto. Senza, i compratori perdono l'8,3% del valore in truffe e ne restano circa 5 su 60. Con l'escrow le perdite scendono intorno all'1%.
-- Una cauzione di 5 USDC porta i truffatori attivi da 53 a 9. La revisione gratuita tiene il 20% di fornitori onesti in più (50 invece di 42).
-- Fee di lancio: **2,5%**. Rende circa 630 USDC al mese sul campione simulato, già al netto di verifiche, referral e gas, e fa perdere il 18% dei lavori. Il 5% renderebbe circa 930 ma ne perderebbe il 43%.
+- Escrow is the product. Without it, buyers lose 8.3% of the value to scams and only about 5 out of 60 remain. With escrow, losses drop to around 1%.
+- A 5 USDC stake brings active scammers down from 53 to 9. The free revision keeps 20% more honest providers (50 instead of 42).
+- Launch fee: **2.5%**. It yields about 630 USDC per month on the simulated sample, already net of verification, referrals and gas, and loses 18% of jobs. 5% would yield about 930 but lose 43% of jobs.
 
-I numeri della simulazione dipendono da ipotesi non ancora verificate sul mercato (sezione Rischi). Servono a scegliere le regole, non a prevedere il fatturato.
+The simulation figures depend on assumptions not yet validated in the market (see Risks). They are for choosing the rules, not for forecasting revenue.
 
-## Il modello
+## The model
 
-Francesco non stampa moneta: scrive le regole. Decide chi è affidabile, quanto si deposita a garanzia e come si chiude una contestazione. È il ruolo di una camera di compensazione, non di una banca centrale.
+Francesco does not print money: he writes the rules. He decides who is trustworthy, how much is deposited as collateral and how a dispute is closed. That is the role of a clearing house, not of a central bank.
 
-Perché non emettere una moneta propria:
+Why not issue our own token:
 
-- negli Emirati le stablecoin di pagamento sono competenza esclusiva della Banca Centrale, con riserve al 100% e licenze da banca;
-- chi emette stablecoin guadagna sugli interessi delle riserve, non sulle fee: serve capitale che non c'è;
-- per un agente USDC funziona già ovunque, mentre una moneta nuova va spiegata, convertita e accettata.
+- in the UAE, payment stablecoins are the exclusive remit of the Central Bank, with 100% reserves and bank-grade licenses;
+- stablecoin issuers earn from interest on reserves, not from fees: that takes capital we do not have;
+- for an agent, USDC already works everywhere, while a new token has to be explained, converted and accepted.
 
-Perché la fee è sostenibile anche se x402 è gratis: x402 sposta i soldi, non garantisce il lavoro. La fee paga quattro cose che un agente non può costruirsi da solo:
+Why the fee is sustainable even though x402 is free: x402 moves money, it does not guarantee the work. The fee pays for four things an agent cannot build on its own:
 
-1. **Il mercato**: gli altri agenti che comprano e vendono.
-2. **La fiducia tra estranei**: un terzo neutrale che tiene il deposito e decide le contestazioni.
-3. **La reputazione**: uno storico registrato da altri, su transazioni vere.
-4. **Il credito** (fase 4): anticipi basati sullo storico.
+1. **The market**: the other agents that buy and sell.
+2. **Trust between strangers**: a neutral third party that holds the deposit and settles disputes.
+3. **Reputation**: a track record kept by others, on real transactions.
+4. **Credit** (phase 4): advances based on the track record.
 
-Chi costruisce agenti da solo non è un concorrente ma un cliente: più agenti autonomi esistono, più lavori passano dalla piattaforma. Il vantaggio difendibile nel tempo sono i dati di reputazione, che non si possono copiare.
+People who build agents on their own are not competitors but customers: the more autonomous agents exist, the more jobs go through the platform. The advantage that stays defensible over time is the reputation data, which cannot be copied.
 
-## Concorrenti
+## Competitors
 
-Escrow e reputazione per agenti esistono già: il vantaggio di Clasp non è l'escrow in sé, ma il lavoro di marketing con criteri misurabili, concordati tra agenti e verificati in automatico.
+Escrow and reputation for agents already exist: Clasp's edge is not escrow itself, but marketing work with measurable criteria, agreed between agents and verified automatically.
 
-| Progetto | Cosa fa | Differenza con Clasp |
-| --- | --- | --- |
-| [Holdfast Protocol](https://github-users.yhajoa.workers.dev/orgs/elizaOS/discussions/7071) | Escrow e reputazione per agenti autonomi, su Solana | Generalista. Clasp parte da un verticale, con schede negoziate e verifica dei criteri |
-| [Countersign](https://github.com/countersign-network/packages) | Controllo della spesa degli agenti: limiti, blocco immediato, registro, compatibile x402 e AP2 | Protegge chi spende, non garantisce il lavoro. Complementare: possibile partner |
-| [x402](https://docs.x402.org/extensions/bazaar), AP2 e [Agentic.Market](https://www.coinbase.com/developer-platform/discover/launches/agentic-market) | Pagamenti tra agenti e catalogo dei servizi | Infrastruttura su cui Clasp si appoggia. Rischio: che aggiungano l'escrow |
-| [Vaultion](https://hackernoon.com/u/vaultion) | Escrow crypto non custodial con arbitrato indipendente | Pensato per scambi tra persone, non per lavori tra agenti |
+| Project                                                                                                                                                 | What it does                                                                              | Difference from Clasp                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| [Holdfast Protocol](https://github-users.yhajoa.workers.dev/orgs/elizaOS/discussions/7071)                                                              | Escrow and reputation for autonomous agents, on Solana                                    | Generalist. Clasp starts from one vertical, with negotiated job specs and criteria verification |
+| [Countersign](https://github.com/countersign-network/packages)                                                                                          | Spending control for agents: limits, instant freeze, ledger, compatible with x402 and AP2 | Protects the spender, does not guarantee the work. Complementary: a possible partner            |
+| [x402](https://docs.x402.org/extensions/bazaar), AP2 and [Agentic.Market](https://www.coinbase.com/developer-platform/discover/launches/agentic-market) | Payments between agents and a service catalog                                             | Infrastructure Clasp builds on. Risk: that they add escrow                                      |
+| [Vaultion](https://hackernoon.com/u/vaultion)                                                                                                           | Non-custodial crypto escrow with independent arbitration                                  | Designed for trades between people, not for jobs between agents                                 |
 
-Da tenere al centro della comunicazione: *Clasp — agent work, guaranteed*.
+To keep at the center of all messaging: _Clasp: agent work, guaranteed_.
 
-## Come funziona una transazione
+## How a transaction works
 
-Un agente di un'agenzia che gestisce una campagna Meta compra 30 varianti di copy da un agente copywriter. Il pagamento parte solo dopo due controlli, e senza contestazioni entro 24 ore parte da solo.
+An agent belonging to an agency running a Meta campaign buys 30 copy variants from a copywriter agent. Payment goes out only after two checks, and with no dispute within 24 hours it is released automatically.
 
-Flusso (esempio con un lavoro da 20 USDC e fee al 2,5%):
+Flow (example with a 20 USDC job and a 2.5% fee):
 
-1. Il compratore pubblica: 20 USDC e criteri di accettazione.
-2. Gli agenti firmano la scheda del lavoro (fino a 3 giri di controproposte).
-3. Fondi bloccati in escrow, nel contratto, mai su un conto.
-4. Il fornitore consegna (30 varianti di copy).
-5. Controlli automatici:
-   - superati → passo 6;
-   - non superati → **revisione gratuita**: il fornitore corregge una volta e il lavoro torna ai controlli. Se ancora non superati → arbitro AI.
-6. Il compratore contesta entro 24 ore?
-   - nessuna contestazione → **pagamento rilasciato**: 19,50 al fornitore, 0,50 di fee;
-   - contesta → arbitro AI decide (chi perde paga la tassa): vince il fornitore → pagamento; vince il compratore → rimborso al compratore e il fornitore perde la cauzione.
+1. The buyer posts: 20 USDC and acceptance criteria.
+2. The agents sign the job spec (up to 3 rounds of counter-proposals).
+3. Funds are locked in escrow, in the contract, never in an account.
+4. The provider delivers (30 copy variants).
+5. Automated checks:
+   - passed → step 6;
+   - failed → **free revision**: the provider fixes the work once and it goes back to the checks. If it fails again → AI arbiter.
+6. Does the buyer dispute within 24 hours?
+   - no dispute → **payment released**: 19.50 to the provider, 0.50 in fees;
+   - dispute → the AI arbiter decides (the loser pays the dispute fee): provider wins → payment; buyer wins → refund to the buyer and the provider loses its stake.
 
-La fee si incassa solo sul ramo che finisce con il pagamento. Sui lavori respinti la piattaforma non guadagna, e la cauzione persa va interamente al compratore.
+The fee is collected only on the branch that ends in payment. The platform earns nothing on rejected jobs, and the forfeited stake goes entirely to the buyer.
 
-Se i controlli automatici bocciano il lavoro, non scatta subito il rimborso: il fornitore ha una revisione gratuita, cioè una correzione che torna ai controlli, e il secondo controllo lo paga la piattaforma. Se fallisce di nuovo decide l'arbitro AI. Così un errore di formato, come una lunghezza sbagliata, non costa la cauzione a un fornitore onesto.
+If the automated checks reject the work, the refund does not kick in right away: the provider gets a free revision, meaning one fix that goes back through the checks, and the platform pays for the second check. If it fails again, the AI arbiter decides. This way a formatting mistake, such as a wrong length, does not cost an honest provider its stake.
 
-## Dove vanno i soldi
+## Where the money goes
 
-Di ogni pagamento la piattaforma trattiene solo la fee; il resto va al portafoglio dell'agente che ha fatto il lavoro, cioè a chi lo possiede.
+From each payment the platform keeps only the fee; the rest goes to the wallet of the agent that did the work, that is, to its owner.
 
-| Voce (lavoro da 20 USDC) | Importo | A chi va |
-| --- | --- | --- |
-| Fee della piattaforma (2,5%) | 0,50 USDC | Clasp |
-| di cui referral, se c'è (0,5 punti) | 0,10 USDC | A chi ha portato l'agente |
-| Pagamento del lavoro | 19,50 USDC | Portafoglio dell'agente fornitore |
+| Item (20 USDC job)                     | Amount     | Recipient                    |
+| -------------------------------------- | ---------- | ---------------------------- |
+| Platform fee (2.5%)                    | 0.50 USDC  | Clasp                        |
+| of which referral, if any (0.5 points) | 0.10 USDC  | Whoever brought in the agent |
+| Payment for the work                   | 19.50 USDC | Provider agent's wallet      |
 
-- **Fornitore = agente tuo** (fasi 1 e 2): incassi fee e pagamento. Il costo reale è solo quello delle chiamate al modello AI, pochi centesimi per lavoro.
-- **Fornitore = agente di altri** (dalla fase 3): incassi solo la fee.
+- **Provider = your own agent** (phases 1 and 2): you collect both the fee and the payment. The only real cost is the AI model calls, a few cents per job.
+- **Provider = someone else's agent** (from phase 3): you collect only the fee.
 
-All'inizio si guadagna soprattutto con il lavoro dei propri agenti. Esempio a 100 lavori al giorno da 20 USDC: la fee vale circa 1.500 USDC al mese, i pagamenti agli agenti fornitori circa 58.500. La piattaforma costruisce il valore nel lungo periodo; i propri agenti fanno cassa subito.
+At the start, most of the money comes from your own agents' work. Example at 100 jobs per day at 20 USDC: the fee is worth about 1,500 USDC per month, the payments to provider agents about 58,500. The platform builds value over the long term; your own agents bring in cash right away.
 
-**Parità di trattamento.** Clasp è sia arbitro sia fornitore, quindi i suoi agenti seguono le stesse regole degli altri, e lo si dichiara pubblicamente:
+**Equal treatment.** Clasp is both arbiter and provider, so its agents follow the same rules as everyone else, and this is stated publicly:
 
-- stessa fee, stessa cauzione, stessi controlli e stesso arbitro;
-- nessuna precedenza nella scelta del fornitore: conta solo la reputazione;
-- gli agenti di Clasp sono segnalati come tali nel catalogo;
-- le decisioni dell'arbitro sui lavori degli agenti di Clasp sono pubblicate nel registro come tutte le altre.
+- same fee, same stake, same checks and same arbiter;
+- no priority in provider selection: only reputation counts;
+- Clasp's agents are labeled as such in the catalog;
+- the arbiter's decisions on jobs by Clasp's agents are published in the ledger like all the others.
 
-## Criteri di accettazione
+## Acceptance criteria
 
-Prima che i soldi vengano bloccati, i due agenti concordano una **scheda del lavoro** in formato fisso. Verificatore e arbitro giudicano solo su quella scheda, così "lavoro fatto bene" non è mai un'opinione.
+Before the money is locked, the two agents agree on a **job spec** in a fixed format. The verifier and the arbiter judge only against that spec, so "work done well" is never a matter of opinion.
 
-Come si arriva all'accordo:
+How agreement is reached:
 
-1. Il compratore propone la scheda partendo da un modello pronto per quel tipo di lavoro.
-2. Il fornitore accetta, oppure fa una controproposta su al massimo 3 campi (per esempio "lunghezza fino a 90 caratteri" o "prezzo 22 USDC").
-3. Si fanno al massimo 3 giri. Senza accordo il lavoro torna disponibile per altri fornitori, senza costi per nessuno.
-4. Quando entrambi firmano, l'impronta della scheda (hash) viene scritta nel contratto escrow insieme ai fondi. Dopo non si può più cambiare.
+1. The buyer proposes the spec, starting from a ready-made template for that type of job.
+2. The provider accepts, or counter-proposes changes to at most 3 fields (for example "length up to 90 characters" or "price 22 USDC").
+3. There are at most 3 rounds. Without agreement the job goes back on the market for other providers, at no cost to anyone.
+4. Once both sign, the spec's fingerprint (hash) is written into the escrow contract together with the funds. After that it can no longer be changed.
 
-| Campo | Chi lo controlla | Esempio |
-| --- | --- | --- |
-| Tipo di lavoro | — | copy per inserzione |
-| Quantità | Regole in codice | 30 varianti |
-| Lunghezza | Regole in codice | 40–125 caratteri |
-| Lingua | Rilevamento automatico della lingua | italiano |
-| Tono | Modello AI economico | diretto, informale, seconda persona |
-| Parole vietate | Regole in codice | gratis, garantito, miracoloso |
-| Formato | Regole in codice | JSON con i campi titolo e testo |
-| Scadenza | Contratto escrow | 2 ore |
-| Prezzo | Contratto escrow | 20 USDC |
+| Field        | Checked by                   | Example                             |
+| ------------ | ---------------------------- | ----------------------------------- |
+| Job type     | -                            | listing copy                        |
+| Quantity     | Code rules                   | 30 variants                         |
+| Length       | Code rules                   | 40-125 characters                   |
+| Language     | Automatic language detection | English                             |
+| Tone         | Cheap AI model               | direct, informal, second person     |
+| Banned words | Code rules                   | free, guaranteed, miraculous        |
+| Format       | Code rules                   | JSON with the fields title and text |
+| Deadline     | Escrow contract              | 2 hours                             |
+| Price        | Escrow contract              | 20 USDC                             |
 
-Così appare una scheda firmata, come la ricevono il server MCP e il verificatore:
+This is what a signed spec looks like, as the MCP server and the verifier receive it:
 
 ```json
 {
-  "tipo": "copy_inserzione",
-  "quantita": 30,
-  "lunghezza": { "min": 40, "max": 125, "unita": "caratteri" },
-  "lingua": "it",
-  "tono": ["diretto", "informale", "seconda persona"],
-  "parole_vietate": ["gratis", "garantito", "miracoloso"],
-  "formato": { "tipo": "json", "campi": ["titolo", "testo"] },
-  "scadenza_ore": 2,
-  "prezzo_usdc": 20,
-  "giri_negoziazione": 1
+  "type": "listing_copy",
+  "quantity": 30,
+  "length": { "min": 40, "max": 125, "unit": "characters" },
+  "language": "en",
+  "tone": ["direct", "informal", "second person"],
+  "banned_words": ["free", "guaranteed", "miraculous"],
+  "format": { "type": "json", "fields": ["title", "text"] },
+  "deadline_hours": 2,
+  "price_usdc": 20,
+  "negotiation_rounds": 1
 }
 ```
 
-Al lancio servono tre modelli pronti, uno per ciascun agente tuo: copy per inserzioni, traduzioni, ricerca sui competitor. Più campi sono controllabili con regole in codice, meno costa la verifica e meno si contesta.
+At launch we need three ready-made templates, one for each of your agents: listing copy, translations, competitor research. The more fields can be checked with code rules, the cheaper verification is and the fewer disputes there are.
 
-## Regole economiche e risultati della simulazione
+## Economic rules and simulation results
 
-Le regole per il lancio: fee 2,5% con sconti sui volumi, cauzione 5 USDC, revisione gratuita, tassa di contestazione a carico di chi perde, cauzione confiscata interamente al compratore.
+The launch rules: 2.5% fee with volume discounts, 5 USDC stake, free revision, dispute fee paid by the loser, forfeited stake going entirely to the buyer.
 
-| Regola | Valore al lancio | Perché |
-| --- | --- | --- |
-| Fee sui lavori pagati | 2,5% del valore, minimo 0,05 USDC | Tiene circa l'82% dei lavori. Il minimo copre verifica e gas sui lavori piccoli |
-| Sconto sui volumi | 2% oltre 500 lavori al mese per proprietario, 1,5% oltre 5.000. Mai sotto l'1,5% | Anche all'1,5% e con referral su ogni lavoro restano circa 0,09 USDC a lavoro, contro 0,023 di costi variabili |
-| Cauzione del fornitore | 5 USDC | Porta i truffatori attivi da 53 a 9 senza far scappare gli onesti |
-| Cauzione persa | Valore del lavoro, tutto al compratore | La piattaforma non deve guadagnare dal punire |
-| Revisione | Una correzione gratuita se i controlli automatici bocciano. Il secondo controllo (~0,01 USDC) lo paga la piattaforma | Il 78% delle correzioni va a buon fine |
-| Tassa di contestazione | Il maggiore tra 0,25 USDC e il 5% del valore, a carico di chi perde | Copre l'arbitro AI e scoraggia le contestazioni pretestuose |
-| Rilascio automatico | 24 ore senza contestazioni | Il fornitore viene pagato anche se il compratore non risponde |
-| Valore massimo per lavoro | 100 USDC nei primi mesi | Limita il danno di un eventuale errore nel contratto |
-| Referral | 0,5 punti della fee per 12 mesi | Dettagli sotto |
+| Rule                  | Launch value                                                                                   | Why                                                                                                             |
+| --------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Fee on paid jobs      | 2.5% of the value, minimum 0.05 USDC                                                           | Keeps about 82% of jobs. The minimum covers verification and gas on small jobs                                  |
+| Volume discount       | 2% above 500 jobs per month per owner, 1.5% above 5,000. Never below 1.5%                      | Even at 1.5% and with a referral on every job, about 0.09 USDC per job remains, against 0.023 in variable costs |
+| Provider stake        | 5 USDC                                                                                         | Brings active scammers down from 53 to 9 without driving away honest providers                                  |
+| Forfeited stake       | The job value, all of it to the buyer                                                          | The platform must not profit from punishing                                                                     |
+| Revision              | One free fix if the automated checks fail. The platform pays for the second check (~0.01 USDC) | 78% of fixes succeed                                                                                            |
+| Dispute fee           | The greater of 0.25 USDC and 5% of the value, paid by the loser                                | Covers the AI arbiter and discourages frivolous disputes                                                        |
+| Automatic release     | 24 hours without disputes                                                                      | The provider gets paid even if the buyer does not respond                                                       |
+| Maximum value per job | 100 USDC in the first months                                                                   | Limits the damage of any bug in the contract                                                                    |
+| Referral              | 0.5 fee points for 12 months                                                                   | Details below                                                                                                   |
 
-**Referral automatico.** Chi porta un nuovo agente sulla piattaforma riceve una parte della fee su ogni suo lavoro. Sono gli utenti a portare altri utenti, senza commerciali.
+**Automatic referral.** Whoever brings a new agent onto the platform receives a share of the fee on each of its jobs. Users bring in other users, with no sales team.
 
-- **Quota:** 0,5 punti dei 2,5 di fee, cioè un quinto. Sui lavori portati da referral la piattaforma trattiene il 2%.
-- **Durata:** 12 mesi dalla prima transazione dell'agente portato. Così il costo non si accumula per sempre.
-- **Chi riceve:** l'agente o lo sviluppatore indicato al momento della registrazione, con un codice nella chiamata di registrazione al server MCP.
-- **Pagamento:** il contratto escrow divide la fee in automatico al rilascio del pagamento, insieme al resto.
-- **Contro gli abusi:** si paga solo su lavori completati e non contestati, tra agenti di proprietari diversi. L'agente portato deve aver versato la cauzione. Nessun referral su se stessi o tra portafogli dello stesso proprietario.
+- **Share:** 0.5 of the 2.5 fee points, i.e. one fifth. On jobs brought in by referral the platform keeps 2%.
+- **Duration:** 12 months from the referred agent's first transaction. This way the cost does not pile up forever.
+- **Recipient:** the agent or developer named at registration, via a code in the registration call to the MCP server.
+- **Payment:** the escrow contract splits the fee automatically when the payment is released, together with everything else.
+- **Anti-abuse:** paid only on completed, undisputed jobs between agents with different owners. The referred agent must have posted its stake. No self-referrals and no referrals between wallets of the same owner.
 
-Il referral ha un costo: con il 40% dei lavori portati da referral l'utile simulato scende da 689 a 632 USDC al mese, con il 100% a 546. È il prezzo di una crescita senza commerciali.
+The referral has a cost: with 40% of jobs coming from referrals, simulated profit drops from 689 to 632 USDC per month, and to 546 at 100%. That is the price of growth without a sales team.
 
-**Escrow e cauzione.** Con fee al 2,5%, su 90 giorni:
+**Escrow and stake.** With a 2.5% fee, over 90 days:
 
-| Modello | Valore scambiato (USDC) | Perso in truffe | Compratori rimasti su 60 | Truffatori attivi | Fornitori onesti attivi |
-| --- | --- | --- | --- | --- | --- |
-| Paga prima (x402 senza protezione) | 47.449 | 8,3% | 5,5 | 52,2 | 62,0 |
-| Escrow, senza cauzione | 84.086 | 1,1% | 48,0 | 52,8 | 55,0 |
-| Escrow + cauzione 5 USDC | 85.981 | 1,0% | 49,1 | 9,2 | 50,4 |
-| Escrow + cauzione 20 USDC | 84.162 | 0,9% | 48,5 | 5,4 | 43,4 |
+| Model                               | Value exchanged (USDC) | Lost to scams | Buyers remaining out of 60 | Active scammers | Active honest providers |
+| ----------------------------------- | ---------------------- | ------------- | -------------------------- | --------------- | ----------------------- |
+| Pay first (x402 without protection) | 47,449                 | 8.3%          | 5.5                        | 52.2            | 62.0                    |
+| Escrow, no stake                    | 84,086                 | 1.1%          | 48.0                       | 52.8            | 55.0                    |
+| Escrow + 5 USDC stake               | 85,981                 | 1.0%          | 49.1                       | 9.2             | 50.4                    |
+| Escrow + 20 USDC stake              | 84,162                 | 0.9%          | 48.5                       | 5.4             | 43.4                    |
 
-L'escrow quasi raddoppia il valore scambiato perché i compratori restano. La cauzione da 5 USDC blocca la maggior parte dei truffatori; quella da 20 ne blocca qualcuno in più ma costa 7 fornitori onesti.
+Escrow nearly doubles the value exchanged because buyers stay. The 5 USDC stake blocks most scammers; the 20 USDC one blocks a few more but costs 7 honest providers.
 
-**Revisione gratuita.** Con la revisione restano attivi 50 fornitori onesti invece di 42. Il prezzo: le perdite dei compratori salgono da 0,7% a 1,0%, perché anche i truffatori hanno una seconda possibilità (9 attivi invece di 5). Riservarla a chi ha già 10 lavori riusciti abbassa le perdite allo 0,8% ma annulla il vantaggio sugli onesti: conviene darla a tutti.
+**Free revision.** With the revision, 50 honest providers stay active instead of 42. The price: buyer losses rise from 0.7% to 1.0%, because scammers get a second chance too (9 active instead of 5). Reserving it for providers with 10 successful jobs lowers losses to 0.8% but cancels the benefit for honest providers: it is better to give it to everyone.
 
-**Chi incassa la cauzione persa.** Se metà andasse alla piattaforma, l'utile simulato (fee 2%, cauzione 20) salirebbe da 603 a 1.348 USDC al mese, ma il 54% dei ricavi verrebbe dal punire. È un ricavo che sparisce proprio quando il sistema funziona, e crea un incentivo a punire: escluso.
+**Who collects the forfeited stake.** If half went to the platform, simulated profit (2% fee, 20 USDC stake) would rise from 603 to 1,348 USDC per month, but 54% of revenue would come from punishing. That revenue disappears precisely when the system works, and it creates an incentive to punish: ruled out.
 
-**Livello della fee** (utile mensile simulato in USDC, cauzione 5, revisione gratuita, 40% dei lavori da referral, senza netting):
+**Fee level** (simulated monthly profit in USDC, 5 USDC stake, free revision, 40% of jobs from referrals, no netting):
 
-| Fee | Utile al mese (USDC) | Lavori persi |
-| --- | --- | --- |
-| 0,5% | 114 | 0% |
-| 1% | 254 | 0% |
-| 2% | 509 | 14% |
-| **2,5% (lancio)** | **632** | **18%** |
-| 3% | 712 | 24% |
-| 4% | 866 | 34% |
-| 5% | 933 | 43% |
-| 8% | 792 | 72% |
+| Fee               | Profit per month (USDC) | Jobs lost |
+| ----------------- | ----------------------- | --------- |
+| 0.5%              | 114                     | 0%        |
+| 1%                | 254                     | 0%        |
+| 2%                | 509                     | 14%       |
+| **2.5% (launch)** | **632**                 | **18%**   |
+| 3%                | 712                     | 24%       |
+| 4%                | 866                     | 34%       |
+| 5%                | 933                     | 43%       |
+| 8%                | 792                     | 72%       |
 
-Il 5% è il massimo di breve periodo, ma dipende dall'ipotesi su quanto rischio percepiscono i compratori. Al lancio conta di più tenere i lavori, perché ogni lavoro aggiunge dati di reputazione. Con il 2,5% il margine è di circa 0,25 USDC a lavoro, già al netto di verifiche, referral e gas: servono circa 1.000 lavori completati al giorno per 7.600 USDC di utile al mese.
+5% is the short-term maximum, but it depends on the assumption about how much risk buyers perceive. At launch, keeping jobs matters more, because every job adds reputation data. At 2.5% the margin is about 0.25 USDC per job, already net of verification, referrals and gas: it takes about 1,000 completed jobs per day for 7,600 USDC of profit per month.
 
-## Architettura tecnica
+## Technical architecture
 
-Otto componenti, quasi tutti su piani gratuiti: il costo cresce solo quando crescono i lavori, e ogni costo variabile è coperto dalla fee o dalla tassa di contestazione.
+Eight components, almost all on free tiers: costs grow only when jobs grow, and every variable cost is covered by the fee or the dispute fee.
 
-| Componente | Cosa fa | Tecnologia | Costo (stima) |
-| --- | --- | --- | --- |
-| Contratto escrow | Blocca i fondi, rilascia il pagamento, trattiene la fee, gestisce le cauzioni | Solidity su Base, il più piccolo possibile, su librerie già verificate (OpenZeppelin) | ~0,005 USDC per transazione, pagato dalla piattaforma |
-| Server MCP + API | Unico ingresso per gli agenti: registrarsi, pubblicare, negoziare la scheda, prendere, consegnare, contestare | TypeScript su Cloudflare Workers | Piano gratuito all'inizio |
-| Pagamenti x402 | Pagamenti e ricariche compatibili con lo standard | Libreria x402 open source | 0 |
-| Verificatore | Controlla i criteri del lavoro: regole in codice, poi un modello AI economico | Regole + modello AI | ~0,003–0,03 USDC per controllo |
-| Arbitro AI | Decide le contestazioni | Modello AI | ~0,03 USDC per contestazione, coperto dalla tassa (min. 0,25) |
-| Registro reputazione | Storico di ogni agente | Postgres su piano gratuito (Supabase o Cloudflare D1) | 0 |
-| Agenti fornitori tuoi | 10–20 agenti specializzati in marketing | Modello AI + prompt e dati tuoi | Pagati dai lavori che svolgono |
-| Pannello proprietari | Ricarica, ritiro, saldo, storico: una pagina | Pagina statica | 0 |
+| Component            | What it does                                                                              | Technology                                                                          | Cost (estimate)                                                |
+| -------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Escrow contract      | Locks funds, releases payment, withholds the fee, manages stakes                          | Solidity on Base, as small as possible, on already audited libraries (OpenZeppelin) | ~0.005 USDC per transaction, paid by the platform              |
+| MCP server + API     | Single entry point for agents: register, post, negotiate the spec, take, deliver, dispute | TypeScript on Cloudflare Workers                                                    | Free tier at first                                             |
+| x402 payments        | Payments and top-ups compatible with the standard                                         | Open source x402 library                                                            | 0                                                              |
+| Verifier             | Checks the job criteria: code rules first, then a cheap AI model                          | Rules + AI model                                                                    | ~0.003-0.03 USDC per check                                     |
+| AI arbiter           | Decides disputes                                                                          | AI model                                                                            | ~0.03 USDC per dispute, covered by the dispute fee (min. 0.25) |
+| Reputation ledger    | Track record of every agent                                                               | Postgres on a free tier (Supabase or Cloudflare D1)                                 | 0                                                              |
+| Your provider agents | 10-20 agents specialized in marketing                                                     | AI model + your prompts and data                                                    | Paid for by the jobs they do                                   |
+| Owner dashboard      | Top-up, withdrawal, balance, history: a single page                                       | Static page                                                                         | 0                                                              |
 
-Scelte per la facilità d'uso: un agente si collega con una sola chiamata al server MCP, non deve mai possedere ETH per il gas (lo paga la piattaforma) e riceve criteri di accettazione in un formato fisso.
+Choices for ease of use: an agent connects with a single call to the MCP server, never needs to hold ETH for gas (the platform pays it) and receives acceptance criteria in a fixed format.
 
-Cosa **non** costruire, e perché:
+What **not** to build, and why:
 
-- **Moneta o blockchain propria**: costi e licenze senza ricavi in più.
-- **Netting** (un regolamento al giorno invece di uno per lavoro): nella simulazione fa risparmiare circa 16 USDC al mese. Si aggiunge oltre i 10.000 lavori al giorno.
-- **Arbitrato umano**: l'arbitro AI basta per lavori da pochi dollari. Si aggiunge per i lavori grandi.
-- **Vetrina o app per umani**: gli agenti trovano i servizi tramite i registri MCP e A2A.
+- **Our own token or blockchain**: costs and licenses with no extra revenue.
+- **Netting** (one settlement per day instead of one per job): in the simulation it saves about 16 USDC per month. To be added above 10,000 jobs per day.
+- **Human arbitration**: the AI arbiter is enough for jobs worth a few dollars. To be added for large jobs.
+- **Storefront or app for humans**: agents find services through the MCP and A2A registries.
 
-## Costi e budget minimo
+## Costs and minimum budget
 
-La fase 1 costa zero: si lavora su rete di test con moneta finta e piani gratuiti. Si spende solo quando la fase precedente ha raggiunto il suo obiettivo.
+Phase 1 costs nothing: we work on a testnet with test money and free tiers. Money is spent only once the previous phase has reached its goal.
 
-| Voce | Fase | Costo | Quando si spende |
-| --- | --- | --- | --- |
-| Server, database, rete di test | 1 | 0 (piani gratuiti) | Subito |
-| Chiamate ai modelli AI per i tuoi agenti in test | 1 | Pochi USD al mese | Subito |
-| Dominio | 2 | ~15 USD l'anno | Prima del lancio con soldi veri |
-| Parere legale su VARA e Banca Centrale | 2 | Da preventivare: la voce più grande | Prima di toccare soldi veri |
-| Revisione di sicurezza del contratto | 2 | Da preventivare: meno costa se il contratto è piccolo | Prima di toccare soldi veri |
-| Cauzioni dei tuoi 20 agenti (5 USDC l'uno) | 2 | 100 USDC, recuperabili | Al lancio |
-| Budget per comprare lavori di prova | 2 | 100–200 USDC | Al lancio |
-| Gas sulla blockchain | 2 | Circa 30 USDC al mese a questa scala | Al lancio |
-| Verifiche AI (controlli e revisioni) | 2 | Circa 30 USDC al mese a questa scala | Al lancio, coperte dalla fee |
-| Licenza della società in free zone | 3 | Da preventivare | Quando ci sono ricavi |
+| Item                                       | Phase | Cost                                                | When it is spent                 |
+| ------------------------------------------ | ----- | --------------------------------------------------- | -------------------------------- |
+| Server, database, testnet                  | 1     | 0 (free tiers)                                      | Right away                       |
+| AI model calls for your agents under test  | 1     | A few USD per month                                 | Right away                       |
+| Domain                                     | 2     | ~15 USD per year                                    | Before launching with real money |
+| Legal opinion on VARA and the Central Bank | 2     | To be quoted: the largest item                      | Before touching real money       |
+| Security audit of the contract             | 2     | To be quoted: the smaller the contract, the cheaper | Before touching real money       |
+| Stakes for your 20 agents (5 USDC each)    | 2     | 100 USDC, recoverable                               | At launch                        |
+| Budget for buying test jobs                | 2     | 100-200 USDC                                        | At launch                        |
+| On-chain gas                               | 2     | About 30 USDC per month at this scale               | At launch                        |
+| AI verification (checks and revisions)     | 2     | About 30 USDC per month at this scale               | At launch, covered by the fee    |
+| Free zone company license                  | 3     | To be quoted                                        | Once there is revenue            |
 
-I tuoi soldi a rischio prima dei primi ricavi: circa 300 USDC operativi, più parere legale e revisione del contratto. Chiedere due o tre preventivi per queste due voci è il primo compito della fase 2.
+Your money at risk before the first revenue: about 300 USDC in operating costs, plus the legal opinion and the contract audit. Getting two or three quotes for these two items is the first task of phase 2.
 
-**Punto di pareggio.** Mesi per ripagare parere legale e revisione del contratto, con il margine simulato di circa 0,25 USDC a lavoro. I tre costi iniziali sono ipotesi da sostituire con i preventivi veri.
+**Break-even.** Months needed to pay back the legal opinion and the contract audit, with the simulated margin of about 0.25 USDC per job. The three upfront cost levels are assumptions, to be replaced with real quotes.
 
-| Costo iniziale (legale + contratto) | A 100 lavori al giorno (~740 USDC/mese) | A 300 lavori al giorno (~2.260 USDC/mese) | A 1.000 lavori al giorno (~7.590 USDC/mese) |
-| --- | --- | --- | --- |
-| Basso: 3.000 USD | 4 mesi | 1,3 mesi | meno di 1 mese |
-| Medio: 8.000 USD | 11 mesi | 3,5 mesi | 1,1 mesi |
-| Alto: 15.000 USD | 20 mesi | 6,6 mesi | 2 mesi |
+| Upfront cost (legal + contract) | At 100 jobs per day (~740 USDC/month) | At 300 jobs per day (~2,260 USDC/month) | At 1,000 jobs per day (~7,590 USDC/month) |
+| ------------------------------- | ------------------------------------- | --------------------------------------- | ----------------------------------------- |
+| Low: 3,000 USD                  | 4 months                              | 1.3 months                              | less than 1 month                         |
+| Medium: 8,000 USD               | 11 months                             | 3.5 months                              | 1.1 months                                |
+| High: 15,000 USD                | 20 months                             | 6.6 months                              | 2 months                                  |
 
-Il volume decide più del costo: arrivare a 300 lavori al giorno vale più che risparmiare sul preventivo.
+Volume matters more than cost: reaching 300 jobs per day is worth more than saving on the quote.
 
 ## Roadmap
 
-Si passa alla fase successiva solo quando la condizione è soddisfatta: così non si spende prima di avere la prova che serve. Le soglie sono obiettivi proposti, da correggere con i dati della fase 1.
+We move to the next phase only when its condition is met: this way nothing is spent before we have the evidence we need. The thresholds are proposed targets, to be adjusted with phase 1 data.
 
-| Fase | Periodo | Cosa | Condizione per passare alla successiva |
-| --- | --- | --- | --- |
-| 1 · Simulazione | mesi 0–2 | Escrow su rete di test, 3 agenti tuoi, 100 lavori di prova. Costo: 0 | Arbitro AI corretto ≥ 90%, parere legale positivo |
-| 2 · Soldi veri | mesi 2–5 | USDC reali in piccole cifre, 20 agenti tuoi, primi 5 clienti. ~300 USDC + legale | 200 lavori al mese, contestazioni sotto il 5% |
-| 3 · Apertura | mesi 5–12 | Fornitori esterni, test fee 2,5% → 3%, primo round o autofinanziamento | 1.000 lavori al giorno, clienti che tornano |
-| 4 · Credito | dal mese 12 | Anticipi sullo storico, licenza ADGM o VARA, guadagno sui tassi | — |
+| Phase          | Period        | What                                                                                | Condition to move to the next phase              |
+| -------------- | ------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------ |
+| 1 · Simulation | months 0-2    | Escrow on testnet, 3 of your agents, 100 test jobs. Cost: 0                         | AI arbiter correct ≥ 90%, positive legal opinion |
+| 2 · Real money | months 2-5    | Real USDC in small amounts, 20 of your agents, first 5 customers. ~300 USDC + legal | 200 jobs per month, disputes below 5%            |
+| 3 · Opening up | months 5-12   | External providers, fee test 2.5% → 3%, first round or bootstrapping                | 1,000 jobs per day, returning customers          |
+| 4 · Credit     | from month 12 | Advances based on track record, ADGM or VARA license, earning on interest           | -                                                |
 
-## Come trovare i clienti
+## How to find customers
 
-I clienti sono agenti, e gli agenti cercano i servizi da soli: quattro canali su sei funzionano senza venditori. Solo i primi 5 clienti costano qualche messaggio diretto.
+The customers are agents, and agents look for services on their own: four channels out of six work without salespeople. Only the first 5 customers take a few direct messages.
 
-| Priorità | Canale | Come funziona | Quando |
-| --- | --- | --- | --- |
-| 1 | Cataloghi per agenti | Ogni agente tuo pubblicato nel [Bazaar di x402](https://docs.x402.org/extensions/bazaar), su [Agentic.Market](https://www.coinbase.com/developer-platform/discover/launches/agentic-market) e nel registro ufficiale dei server MCP. Gli agenti li trovano e li pagano in automatico | Dalla fase 2, impostato una volta sola |
-| 2 | Collegamento a Claude e ChatGPT | Un'agenzia collega il server MCP con un clic e ordina in chat ("30 varianti di copy per questa campagna"). Nessuna blockchain da capire | Dalla fase 2 |
-| 3 | Referral automatico | Chi porta un agente riceve 0,5 punti di fee per 12 mesi. Gli utenti portano altri utenti | Dalla fase 3 |
-| 4 | Sviluppatori di agenti | Fee allo 0% per i primi 3 mesi e integrazione in poche righe. Ogni fornitore porta i suoi clienti. Si trovano su GitHub, Discord e X | Dalla fase 3 |
-| 5 | Contenuti | Raccontare il progetto mentre si costruisce, su LinkedIn e X: simulazione, numeri, primi lavori. Pubblicità solo quando si sa quanto vale un cliente | Da subito |
-| 6 | Rete personale | Primi 5 clienti dalle agenzie e dalle persone del marketing che conosci, con un messaggio e una demo di 10 minuti | Da subito |
+| Priority | Channel                          | How it works                                                                                                                                                                                                                                                                     | When                      |
+| -------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| 1        | Agent catalogs                   | Each of your agents listed in the [x402 Bazaar](https://docs.x402.org/extensions/bazaar), on [Agentic.Market](https://www.coinbase.com/developer-platform/discover/launches/agentic-market) and in the official MCP server registry. Agents find them and pay them automatically | From phase 2, set up once |
+| 2        | Connection to Claude and ChatGPT | An agency connects the MCP server in one click and orders in chat ("30 copy variants for this campaign"). No blockchain to understand                                                                                                                                            | From phase 2              |
+| 3        | Automatic referral               | Whoever brings in an agent receives 0.5 fee points for 12 months. Users bring in other users                                                                                                                                                                                     | From phase 3              |
+| 4        | Agent developers                 | 0% fee for the first 3 months and integration in a few lines. Every provider brings its own customers. They can be found on GitHub, Discord and X                                                                                                                                | From phase 3              |
+| 5        | Content                          | Tell the story of the project while building it, on LinkedIn and X: simulation, numbers, first jobs. Paid ads only once we know what a customer is worth                                                                                                                         | Right away                |
+| 6        | Personal network                 | First 5 customers from agencies and marketing people you know, with a message and a 10-minute demo                                                                                                                                                                               | Right away                |
 
-I canali 5 e 6 partono subito, mentre si costruisce la fase 1. I canali 1 e 2 sono quelli che scalano da soli.
+Channels 5 and 6 start right away, while phase 1 is being built. Channels 1 and 2 are the ones that scale on their own.
 
-## Rischi e ipotesi da verificare
+## Risks and assumptions to validate
 
-Il rischio più grande è la verifica: se l'arbitro AI sbaglia spesso, la fiducia crolla e la fee non vale più nulla.
+The biggest risk is verification: if the AI arbiter is often wrong, trust collapses and the fee is no longer worth anything.
 
-| Rischio o ipotesi | Valore usato nella simulazione | Come si verifica |
-| --- | --- | --- |
-| Quanto rischio percepiscono i compratori pagando direttamente | Tra 1% e 12% del valore | Test della fee al 2,5% e poi al 3% su clienti veri: quanti restano |
-| Quota di lavori scadenti bloccati in automatico | 60% | Misurarla sui lavori dei tuoi agenti in fase 1 |
-| Accuratezza dell'arbitro AI | 90% | 100 contestazioni di prova giudicate anche da te |
-| Quota di truffatori tra i nuovi agenti | 15% | Registro degli agenti che perdono la cauzione |
-| Valore medio di un lavoro | 8 USDC (mediana) | Prezzi reali dei primi 200 lavori |
+| Risk or assumption                                 | Value used in the simulation    | How to validate it                                                   |
+| -------------------------------------------------- | ------------------------------- | -------------------------------------------------------------------- |
+| How much risk buyers perceive when paying directly | Between 1% and 12% of the value | Test the fee at 2.5% and then at 3% on real customers: how many stay |
+| Share of bad jobs blocked automatically            | 60%                             | Measure it on your agents' jobs in phase 1                           |
+| AI arbiter accuracy                                | 90%                             | 100 test disputes also judged by you                                 |
+| Share of scammers among new agents                 | 15%                             | Ledger of agents that lose their stake                               |
+| Average job value                                  | 8 USDC (median)                 | Real prices of the first 200 jobs                                    |
 
-Altri rischi:
+Other risks:
 
-- **I giganti aggiungono l'escrow** (Google, Coinbase, Stripe). Difesa: velocità nel verticale e neutralità, cioè funzionare con tutte le piattaforme.
-- **Regolamentazione**: anche senza custodia, l'attività può rientrare nei servizi su asset virtuali. Va confermato con il parere legale prima della fase 2.
-- **Contratto vulnerabile**: un errore nel codice può svuotare l'escrow. Difesa: contratto minimo, revisione esterna, limite massimo per lavoro (per esempio 100 USDC) nei primi mesi.
-- **Agenti falsi per gonfiare la reputazione**: la cauzione e la fee rendono costoso scambiarsi lavori finti. Va monitorato chi lavora sempre con gli stessi pochi agenti.
+- **The giants add escrow** (Google, Coinbase, Stripe). Defense: speed in the vertical and neutrality, i.e. working with every platform.
+- **Regulation**: even without custody, the activity may fall under virtual asset services. To be confirmed with the legal opinion before phase 2.
+- **Vulnerable contract**: a bug in the code can drain the escrow. Defense: minimal contract, external audit, maximum value per job (for example 100 USDC) in the first months.
+- **Fake agents inflating reputation**: the stake and the fee make it expensive to trade fake jobs. Agents that always work with the same few counterparts should be monitored.
 
-## Prossimi passi
+## Next steps
 
-Il primo obiettivo su Claude Code è far girare l'escrow su rete di test con due agenti tuoi che si scambiano un lavoro vero.
+The first goal on Claude Code is to get the escrow running on testnet with two of your agents exchanging a real job.
 
-Prima di scrivere codice:
+Before writing code:
 
-- [x] Chiedere a 3–5 agenzie o persone del marketing se pagherebbero il 2,5% in più per un lavoro garantito con rimborso
-- [x] Controllare il proprio contratto di lavoro sulle attività parallele
-- [x] Chiedere 2–3 preventivi per il parere legale su VARA e aggiornare la tabella del punto di pareggio
+- [x] Ask 3-5 agencies or marketing people whether they would pay 2.5% more for a guaranteed job with a refund
+- [x] Check your own employment contract regarding side activities
+- [x] Get 2-3 quotes for the legal opinion on VARA and update the break-even table
 
-Su Claude Code, fase 1:
+On Claude Code, phase 1:
 
-- [ ] Creare le tre schede modello (copy per inserzioni, traduzioni, ricerca sui competitor) nel formato della sezione Criteri di accettazione
-- [ ] Scrivere il contratto escrow minimo (blocca, rilascia, rimborsa, cauzione, fee, referral) con i test automatici
-- [ ] Pubblicarlo sulla rete di test di Base (Base Sepolia) con moneta finta
-- [ ] Costruire il server MCP con 6 azioni: registrati, pubblica, negozia, prendi, consegna, contesta
-- [ ] Creare i primi 3 agenti fornitori, uno per scheda modello
-- [ ] Far girare 100 lavori di prova e misurare blocchi automatici, revisioni riuscite, contestazioni e accuratezza dell'arbitro
-- [ ] Aggiornare le ipotesi della simulazione (CONFIG in simulazione.py) con i valori misurati e rieseguirla
+- [ ] Create the three template specs (listing copy, translations, competitor research) in the format from the Acceptance criteria section
+- [ ] Write the minimal escrow contract (lock, release, refund, stake, fee, referral) with automated tests
+- [ ] Deploy it on the Base testnet (Base Sepolia) with test money
+- [ ] Build the MCP server with 6 actions: register, post, negotiate, take, deliver, dispute
+- [ ] Create the first 3 provider agents, one per template spec
+- [ ] Run 100 test jobs and measure automatic blocks, successful revisions, disputes and arbiter accuracy
+- [ ] Update the simulation assumptions (CONFIG in [simulation/simulate.py](simulation/simulate.py)) with the measured values and run it again
 
-Il referral (codice alla registrazione, divisione della fee nel contratto) si costruisce insieme all'escrow: aggiungerlo dopo costerebbe una seconda revisione del contratto.
+The referral (code at registration, fee split in the contract) is built together with the escrow: adding it later would cost a second contract audit.

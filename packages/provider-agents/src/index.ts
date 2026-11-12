@@ -1,4 +1,5 @@
-export { CopyAgent } from "./copy-agent.js";
-export { TranslationAgent } from "./translation-agent.js";
-export { ResearchAgent } from "./research-agent.js";
-export { BaseAgent } from "./base-agent.js";
+export { BaseAgent, DEFAULT_PROVIDER_MODEL, parseJsonReply } from "./base-agent.js"
+export type { AgentConfig, JobType } from "./base-agent.js"
+export { CopyAgent } from "./copy-agent.js"
+export { TranslationAgent } from "./translation-agent.js"
+export { ResearchAgent } from "./research-agent.js"

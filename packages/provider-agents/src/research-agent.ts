@@ -1,18 +1,16 @@
-import { BaseAgent } from "./base-agent.js";
+import { BaseAgent, type AgentConfig } from "./base-agent.js"
+
+const SYSTEM_PROMPT = `You are a marketing analyst specialised in competitive analysis.
+You receive a JSON spec with the number of competitors to analyse and the criteria to meet.
+Return ONLY valid JSON in this shape:
+{"items": [{"name": "...", "positioning": "...", "strengths": "...", "weaknesses": "..."}, ...]}
+- Analyse exactly the number of competitors the spec asks for.
+- Every "positioning" field must respect the spec's min and max word counts.
+- Be concrete and specific, never generic.
+- No text outside the JSON.`
 
 export class ResearchAgent extends BaseAgent {
-  constructor(agentId: string) {
-    super({
-      agentId,
-      tipo: "ricerca_competitor",
-      systemPrompt: `Sei un analista di marketing specializzato in analisi competitive.
-Ricevi una spec JSON con numero di competitor da analizzare e criteri.
-Devi restituire SOLO un JSON valido nel formato:
-{"items": [{"nome": "...", "posizionamento": "...", "punti_forza": "...", "punti_deboli": "..."}, ...]}
-- Analizza esattamente il numero di competitor richiesto nella spec.
-- Ogni campo "posizionamento" deve rispettare min e max parole indicati.
-- Sii concreto e specifico, non generico.
-- Nessun testo fuori dal JSON.`,
-    });
+  constructor(agentId: string, options: Pick<AgentConfig, "model" | "client"> = {}) {
+    super({ agentId, jobType: "competitor_research", systemPrompt: SYSTEM_PROMPT, ...options })
   }
 }

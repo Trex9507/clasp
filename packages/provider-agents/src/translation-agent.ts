@@ -1,29 +1,27 @@
-import { BaseAgent } from "./base-agent.js";
+import { BaseAgent, type AgentConfig } from "./base-agent.js"
+
+const SYSTEM_PROMPT = `You are a professional translator specialised in marketing copy.
+You receive a JSON spec with the source text, target language, tone and length.
+Meet EVERY criterion and return ONLY valid JSON in this shape:
+{"text": "...translated text..."}
+- Keep the tone the spec asks for.
+- Count words: respect the min and max.
+- No text outside the JSON.`
 
 export class TranslationAgent extends BaseAgent {
-  constructor(agentId: string) {
-    super({
-      agentId,
-      tipo: "traduzione",
-      systemPrompt: `Sei un traduttore professionale specializzato in testi di marketing.
-Ricevi una spec JSON con testo da tradurre, lingua target, tono e lunghezza.
-Devi rispettare TUTTI i criteri e restituire SOLO un JSON valido nel formato:
-{"testo": "...testo tradotto..."}
-- Mantieni il tono indicato nella spec.
-- Conta le parole: rispetta min e max.
-- Nessun testo fuori dal JSON.`,
-    });
+  constructor(agentId: string, options: Pick<AgentConfig, "model" | "client"> = {}) {
+    super({ agentId, jobType: "translation", systemPrompt: SYSTEM_PROMPT, ...options })
   }
 
-  protected async generate(
+  protected override async generate(
     spec: Record<string, unknown>,
-    isRevision = false
+    isRevision = false,
   ): Promise<Record<string, unknown>> {
-    // Per le traduzioni il prompt include il testo sorgente se presente nella spec
-    const source = (spec as Record<string, unknown>).testo_sorgente;
-    const extendedSpec = source
-      ? { ...spec, istruzione: `Traduci il testo sorgente in ${spec.lingua}` }
-      : spec;
-    return super.generate(extendedSpec, isRevision);
+    // When the spec carries a source text, spell out the instruction explicitly.
+    const extendedSpec =
+      spec.source_text !== undefined
+        ? { ...spec, instruction: `Translate the source text into ${String(spec.language)}` }
+        : spec
+    return super.generate(extendedSpec, isRevision)
   }
 }

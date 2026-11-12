@@ -8,34 +8,34 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title ClaspEscrow
- * @notice Camera di compensazione per lavori tra agenti AI.
- *         I fondi restano bloccati finché il lavoro non è verificato.
- *         Fee solo sui lavori completati. Cauzione del fornitore.
- *         Limite di 100 USDC per lavoro nei primi mesi (safety cap).
+ * @notice Clearing house for work between AI agents.
+ *         Funds stay locked until the work is verified.
+ *         Fees only on completed jobs. Providers post a stake.
+ *         Capped at 100 USDC per job for the first months (safety cap).
  */
 contract ClaspEscrow is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
     // -------------------------------------------------------------------------
-    // Tipi
+    // Types
     // -------------------------------------------------------------------------
 
     enum JobStatus {
-        Open,        // fondi bloccati, lavoro assegnato
-        Completed,   // pagamento rilasciato al fornitore
-        Refunded,    // rimborso al compratore
-        Disputed     // in arbitrato
+        Open,        // funds locked, job assigned
+        Completed,   // payment released to the provider
+        Refunded,    // refunded to the buyer
+        Disputed     // in arbitration
     }
 
     struct Job {
         address buyer;
         address provider;
-        address referrer;      // chi ha portato il provider (referral)
-        uint256 amount;        // USDC bloccato (escl. cauzione provider)
-        uint256 fee;           // fee trattenuta dalla piattaforma
-        uint256 referralFee;   // quota referral sulla fee
-        bytes32 specHash;      // hash della scheda lavoro firmata
-        uint64  deadline;      // unix timestamp scadenza
+        address referrer;      // who referred the provider
+        uint256 amount;        // locked USDC (excluding the provider stake)
+        uint256 fee;           // fee kept by the platform
+        uint256 referralFee;   // referral share of the fee
+        bytes32 specHash;      // hash of the signed job spec
+        uint64  deadline;      // deadline as a unix timestamp
         JobStatus status;
     }
 
@@ -45,19 +45,19 @@ contract ClaspEscrow is ReentrancyGuard, Ownable {
 
     IERC20 public immutable usdc;
 
-    uint256 public feeBps = 250;          // 2,5% in basis points
-    uint256 public referralBps = 50;      // 0,5 punti della fee
-    uint256 public stakeRequired = 5e6;   // 5 USDC (6 decimali)
+    uint256 public feeBps = 250;          // 2.5% in basis points
+    uint256 public referralBps = 50;      // 0.5 points of the fee
+    uint256 public stakeRequired = 5e6;   // 5 USDC (6 decimals)
     uint256 public maxJobAmount = 100e6;  // 100 USDC safety cap
 
-    uint256 public platformBalance;       // fee accumulate, prelevabili dal owner
+    uint256 public platformBalance;       // accumulated fees, withdrawable by the owner
 
-    mapping(address => uint256) public stakes;   // cauzione per provider
-    mapping(bytes32 => Job)     public jobs;     // jobId → Job
+    mapping(address => uint256) public stakes;   // stake per provider
+    mapping(bytes32 => Job)     public jobs;     // jobId -> Job
     mapping(bytes32 => bool)    public jobExists;
 
     // -------------------------------------------------------------------------
-    // Eventi
+    // Events
     // -------------------------------------------------------------------------
 
     event StakeDeposited(address indexed provider, uint256 amount);
@@ -72,7 +72,7 @@ contract ClaspEscrow is ReentrancyGuard, Ownable {
     event FeeWithdrawn(address indexed to, uint256 amount);
 
     // -------------------------------------------------------------------------
-    // Errori
+    // Errors
     // -------------------------------------------------------------------------
 
     error InsufficientStake();
@@ -94,11 +94,11 @@ contract ClaspEscrow is ReentrancyGuard, Ownable {
     }
 
     // -------------------------------------------------------------------------
-    // Cauzione (stake)
+    // Stake
     // -------------------------------------------------------------------------
 
     /**
-     * @notice Il provider deposita la cauzione prima di poter accettare lavori.
+     * @notice The provider deposits a stake before it can accept jobs.
      */
     function depositStake(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
@@ -108,7 +108,7 @@ contract ClaspEscrow is ReentrancyGuard, Ownable {
     }
 
     /**
-     * @notice Il provider ritira la cauzione (solo se non ha lavori aperti).
+     * @notice The provider withdraws its stake (only with no open jobs).
      */
     function withdrawStake(uint256 amount) external nonReentrant {
         if (stakes[msg.sender] < amount) revert InsufficientStake();
@@ -118,17 +118,17 @@ contract ClaspEscrow is ReentrancyGuard, Ownable {
     }
 
     // -------------------------------------------------------------------------
-    // Ciclo di vita del lavoro
+    // Job lifecycle
     // -------------------------------------------------------------------------
 
     /**
-     * @notice Il compratore crea il lavoro e blocca i fondi in escrow.
-     * @param jobId      ID univoco del lavoro (generato off-chain)
-     * @param provider   indirizzo del provider scelto
-     * @param referrer   indirizzo di chi ha portato il provider (address(0) se nessuno)
-     * @param amount     valore del lavoro in USDC (6 decimali)
-     * @param specHash   keccak256 della scheda lavoro firmata
-     * @param deadline   unix timestamp scadenza consegna
+     * @notice The buyer creates the job and locks the funds in escrow.
+     * @param jobId      unique job ID (generated off-chain)
+     * @param provider   address of the chosen provider
+     * @param referrer   address of whoever referred the provider (address(0) if none)
+     * @param amount     job value in USDC (6 decimals)
+     * @param specHash   keccak256 of the signed job spec
+     * @param deadline   delivery deadline as a unix timestamp
      */
     function createJob(
         bytes32 jobId,
@@ -167,21 +167,21 @@ contract ClaspEscrow is ReentrancyGuard, Ownable {
     }
 
     /**
-     * @notice Rilascia il pagamento al provider (chiamato dal server MCP dopo verifica).
-     *         Può essere chiamato anche dal compratore (accettazione manuale).
+     * @notice Releases payment to the provider (called by the MCP server after verification).
+     *         The buyer may also call it (manual acceptance).
      */
     function releasePayment(bytes32 jobId) external nonReentrant {
         Job storage job = jobs[jobId];
         if (!jobExists[jobId]) revert JobNotFound();
         if (job.status != JobStatus.Open) revert InvalidStatus();
-        // solo il compratore o il owner (arbitro) possono rilasciare
+        // only the buyer or the owner (arbiter) can release
         if (msg.sender != job.buyer && msg.sender != owner()) revert NotOwnerOrArbitrator();
 
         _release(jobId, job);
     }
 
     /**
-     * @notice Rilascio automatico dopo deadline (chiunque può chiamarlo).
+     * @notice Automatic release after the deadline (anyone can call it).
      */
     function autoRelease(bytes32 jobId) external nonReentrant {
         Job storage job = jobs[jobId];
@@ -193,8 +193,8 @@ contract ClaspEscrow is ReentrancyGuard, Ownable {
     }
 
     /**
-     * @notice Rimborsa il compratore e confisca la cauzione del provider.
-     *         Solo il owner (arbitro AI) può chiamarlo.
+     * @notice Refunds the buyer and slashes the provider's stake.
+     *         Only the owner (AI arbiter) can call it.
      */
     function refundBuyer(bytes32 jobId) external onlyOwner nonReentrant {
         Job storage job = jobs[jobId];
@@ -203,7 +203,7 @@ contract ClaspEscrow is ReentrancyGuard, Ownable {
 
         job.status = JobStatus.Refunded;
 
-        // confisca cauzione (fino al valore del lavoro, va interamente al compratore)
+        // slash the stake (up to the job value); all of it goes to the buyer
         uint256 slash = _slashStake(job.provider, job.amount, jobId);
 
         usdc.safeTransfer(job.buyer, job.amount + slash);
@@ -211,7 +211,7 @@ contract ClaspEscrow is ReentrancyGuard, Ownable {
     }
 
     /**
-     * @notice Apre una contestazione (compratore entro 24h dalla consegna).
+     * @notice Opens a dispute (buyer, within 24 hours of delivery).
      */
     function disputeJob(bytes32 jobId) external nonReentrant {
         Job storage job = jobs[jobId];
@@ -248,7 +248,7 @@ contract ClaspEscrow is ReentrancyGuard, Ownable {
     }
 
     // -------------------------------------------------------------------------
-    // Interni
+    // Internal
     // -------------------------------------------------------------------------
 
     function _calcFee(uint256 amount) internal view returns (uint256) {
