@@ -115,3 +115,55 @@ export const agentVersions = pgTable(
   },
   (t) => [unique().on(t.agentId, t.version)],
 )
+
+export const mcpAuthType = pgEnum("mcp_auth_type", ["none", "bearer"])
+export const mcpConnectionStatus = pgEnum("mcp_connection_status", ["unchecked", "ok", "error"])
+
+export interface McpToolRecord {
+  name: string
+  title?: string
+  description: string
+  inputSchema: Record<string, unknown>
+}
+
+// An MCP server a workspace connected. Its tools become actions agents can use.
+export const mcpConnections = pgTable(
+  "mcp_connections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id),
+    name: text("name").notNull(),
+    url: text("url").notNull(),
+    authType: mcpAuthType("auth_type").notNull(),
+    // AES-256-GCM ciphertext (see crypto.ts). Never selected into an API response.
+    credentialEncrypted: text("credential_encrypted"),
+    // The credential's ID in the runtime's workspace vault, once synced.
+    runtimeCredentialId: text("runtime_credential_id"),
+    tools: jsonb("tools").$type<McpToolRecord[]>().notNull().default([]),
+    status: mcpConnectionStatus("status").notNull().default("unchecked"),
+    lastError: text("last_error"),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  // Runtime vaults key credentials by server URL, so one connection per URL per workspace.
+  (t) => [unique().on(t.workspaceId, t.url)],
+)
+
+// The runtime credential store holding a workspace's MCP credentials.
+export const runtimeVaults = pgTable(
+  "runtime_vaults",
+  {
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    vaultId: text("vault_id").notNull(),
+    createdAt: timestamps.createdAt,
+  },
+  (t) => [primaryKey({ columns: [t.workspaceId, t.provider] })],
+)

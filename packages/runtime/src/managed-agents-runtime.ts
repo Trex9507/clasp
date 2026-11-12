@@ -4,7 +4,9 @@ import {
   RuntimeError,
   type AgentRuntime,
   type AgentVersionSpec,
+  type McpCredential,
   type RuntimeAgentRef,
+  type RuntimeVaultRef,
 } from "./types.js"
 
 export interface ManagedAgentsRuntimeOptions {
@@ -31,7 +33,22 @@ export class ManagedAgentsRuntime implements AgentRuntime {
       name: spec.name,
       description: spec.description || null,
       model: { id: spec.providerModelId, effort: spec.effort },
-      system: buildSystemPrompt(spec.systemPrompt, spec.language),
+      system: buildSystemPrompt(spec.systemPrompt, spec.language, spec.actions),
+      // Sent even when empty, so removing the last action clears them on update.
+      mcp_servers: spec.mcpServers.map((s) => ({ type: "url" as const, name: s.name, url: s.url })),
+      // Allowlist: every tool is off unless it is one of the agent's actions.
+      tools: spec.mcpServers.map((s) => ({
+        type: "mcp_toolset" as const,
+        mcp_server_name: s.name,
+        default_config: { enabled: false },
+        configs: s.tools.map((t) => ({
+          name: t.name,
+          enabled: true,
+          permission_policy: {
+            type: t.permission === "auto" ? ("always_allow" as const) : ("always_ask" as const),
+          },
+        })),
+      })),
       metadata: {
         clasp_agent_id: spec.claspAgentId,
         clasp_version_id: spec.claspVersionId,
@@ -62,6 +79,47 @@ export class ManagedAgentsRuntime implements AgentRuntime {
     } catch (error) {
       if (error instanceof Anthropic.NotFoundError) return
       throw new RuntimeError(`Managed Agents archive failed: ${describe(error)}`, error)
+    }
+  }
+
+  async ensureVault(workspaceId: string, existing?: RuntimeVaultRef): Promise<RuntimeVaultRef> {
+    if (existing) return existing
+    try {
+      const vault = await this.client.beta.vaults.create({
+        display_name: `Clasp workspace ${workspaceId}`,
+        metadata: { clasp_workspace_id: workspaceId },
+      })
+      return { provider: this.provider, vaultId: vault.id }
+    } catch (error) {
+      throw new RuntimeError(`Managed Agents vault create failed: ${describe(error)}`, error)
+    }
+  }
+
+  async putCredential(
+    vault: RuntimeVaultRef,
+    credential: McpCredential,
+    existingId?: string,
+  ): Promise<string> {
+    try {
+      // A credential is keyed by its server URL, which cannot be updated in place: replace it.
+      if (existingId) await this.deleteCredential(vault, existingId)
+      const created = await this.client.beta.vaults.credentials.create(vault.vaultId, {
+        display_name: credential.label,
+        auth: { type: "static_bearer", mcp_server_url: credential.url, token: credential.token },
+      })
+      return created.id
+    } catch (error) {
+      if (error instanceof RuntimeError) throw error
+      throw new RuntimeError(`Managed Agents credential save failed: ${describe(error)}`, error)
+    }
+  }
+
+  async deleteCredential(vault: RuntimeVaultRef, credentialId: string): Promise<void> {
+    try {
+      await this.client.beta.vaults.credentials.delete(credentialId, { vault_id: vault.vaultId })
+    } catch (error) {
+      if (error instanceof Anthropic.NotFoundError) return
+      throw new RuntimeError(`Managed Agents credential delete failed: ${describe(error)}`, error)
     }
   }
 }

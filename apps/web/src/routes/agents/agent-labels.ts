@@ -1,5 +1,6 @@
 import {
   LANGUAGES,
+  type ActionPermission,
   MODELS,
   type AgentVisibility,
   type Effort,
@@ -46,3 +47,24 @@ export const VISIBILITY_OPTIONS: {
   { value: "private", label: "Private", description: "Only you." },
   { value: "workspace", label: "Workspace", description: "Everyone in this workspace." },
 ]
+
+export const PERMISSION_OPTIONS: {
+  value: ActionPermission
+  label: string
+  description: string
+}[] = [
+  {
+    value: "ask",
+    label: "Ask me first",
+    description: "The agent pauses and waits for your approval before each use.",
+  },
+  {
+    value: "auto",
+    label: "Run automatically",
+    description: "The agent uses it whenever it decides to, without asking.",
+  },
+]
+
+export function permissionLabel(permission: ActionPermission): string {
+  return PERMISSION_OPTIONS.find((option) => option.value === permission)?.label ?? permission
+}

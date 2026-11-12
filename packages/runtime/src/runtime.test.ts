@@ -15,6 +15,8 @@ const SPEC: AgentVersionSpec = {
   language: "it",
   providerModelId: "claude-sonnet-5-5",
   effort: "medium",
+  mcpServers: [],
+  actions: [],
 }
 
 describe("buildSystemPrompt", () => {
@@ -26,6 +28,17 @@ describe("buildSystemPrompt", () => {
 
   it("falls back to the code for an unknown language", () => {
     expect(buildSystemPrompt("Hi", "xx")).toContain("Always respond in xx")
+  })
+})
+
+describe("buildSystemPrompt actions", () => {
+  it("lists only actions that carry a usage note", () => {
+    const prompt = buildSystemPrompt("Hi", "en", [
+      { toolName: "create_lead", connectionName: "CRM", usageNote: "Only for EMEA leads" },
+      { toolName: "search", connectionName: "CRM", usageNote: "  " },
+    ])
+    expect(prompt).toContain("- create_lead (CRM): Only for EMEA leads")
+    expect(prompt).not.toContain("- search")
   })
 })
 
@@ -72,6 +85,8 @@ describe("ManagedAgentsRuntime", () => {
       description: "Qualifies inbound leads",
       model: { id: "claude-sonnet-5-5", effort: "medium" },
       system: buildSystemPrompt(SPEC.systemPrompt, "it"),
+      mcp_servers: [],
+      tools: [],
       metadata: {
         clasp_agent_id: "agent-1",
         clasp_version_id: "version-1",
@@ -93,6 +108,68 @@ describe("ManagedAgentsRuntime", () => {
       expect.objectContaining({ name: "Lead qualifier" }),
     )
     expect(ref.version).toBe(2)
+  })
+
+  it("declares MCP servers with an allowlist toolset and per-tool permissions", async () => {
+    const { client, agents } = stubClient()
+    await new ManagedAgentsRuntime({ client }).upsertAgent({
+      ...SPEC,
+      mcpServers: [
+        {
+          name: "clasp-c1",
+          url: "https://crm.example.com/mcp",
+          tools: [
+            { name: "create_lead", permission: "ask" },
+            { name: "search", permission: "auto" },
+          ],
+        },
+      ],
+    })
+    const params = agents.create.mock.calls[0]?.[0]
+    expect(params.mcp_servers).toEqual([
+      { type: "url", name: "clasp-c1", url: "https://crm.example.com/mcp" },
+    ])
+    expect(params.tools).toEqual([
+      {
+        type: "mcp_toolset",
+        mcp_server_name: "clasp-c1",
+        default_config: { enabled: false },
+        configs: [
+          { name: "create_lead", enabled: true, permission_policy: { type: "always_ask" } },
+          { name: "search", enabled: true, permission_policy: { type: "always_allow" } },
+        ],
+      },
+    ])
+  })
+
+  it("creates a vault once and replaces credentials by deleting first", async () => {
+    const credentials = {
+      create: vi.fn().mockResolvedValue({ id: "cred_2" }),
+      delete: vi.fn().mockResolvedValue({}),
+    }
+    const vaults = { create: vi.fn().mockResolvedValue({ id: "vlt_1" }), credentials }
+    const client = { beta: { vaults } } as unknown as Anthropic
+    const runtime = new ManagedAgentsRuntime({ client })
+    const vault = await runtime.ensureVault("ws-1")
+    expect(vault).toEqual({ provider: "anthropic-managed-agents", vaultId: "vlt_1" })
+    expect(await runtime.ensureVault("ws-1", vault)).toBe(vault)
+    expect(vaults.create).toHaveBeenCalledOnce()
+
+    const id = await runtime.putCredential(
+      vault,
+      { url: "https://crm.example.com/mcp", token: "secret", label: "CRM" },
+      "cred_1",
+    )
+    expect(id).toBe("cred_2")
+    expect(credentials.delete).toHaveBeenCalledWith("cred_1", { vault_id: "vlt_1" })
+    expect(credentials.create).toHaveBeenCalledWith("vlt_1", {
+      display_name: "CRM",
+      auth: {
+        type: "static_bearer",
+        mcp_server_url: "https://crm.example.com/mcp",
+        token: "secret",
+      },
+    })
   })
 
   it("wraps SDK failures in RuntimeError", async () => {

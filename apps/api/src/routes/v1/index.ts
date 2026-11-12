@@ -12,6 +12,9 @@ import {
 import type { AgentRuntime } from "@clasp/runtime"
 import type { Db } from "../../db/client.js"
 import { agentRoutes } from "./agents.js"
+import { mcpConnectionRoutes } from "./mcp-connections.js"
+import type { SecretBox } from "../../crypto.js"
+import type { DiscoverTools } from "../../mcp/discovery.js"
 import { registerCurrentUser } from "../../auth/current-user.js"
 import { assertWorkspaceAccess, getMe } from "../../workspaces/workspace-service.js"
 
@@ -19,11 +22,14 @@ export interface V1Options {
   db: Db
   runtime: AgentRuntime
   devUserEmail: string
+  discover: DiscoverTools
+  allowPrivateHosts: boolean
+  secrets: SecretBox | undefined
 }
 
 export const v1Routes: FastifyPluginAsyncZod<V1Options> = async (
   app,
-  { db, runtime, devUserEmail },
+  { db, runtime, devUserEmail, discover, allowPrivateHosts, secrets },
 ) => {
   registerCurrentUser(app, db, devUserEmail)
 
@@ -43,4 +49,5 @@ export const v1Routes: FastifyPluginAsyncZod<V1Options> = async (
   )
 
   await app.register(agentRoutes, { db, runtime })
+  await app.register(mcpConnectionRoutes, { db, runtime, discover, allowPrivateHosts, secrets })
 }

@@ -36,3 +36,10 @@ export class UpstreamError extends DomainError {
     super(message, 502)
   }
 }
+
+/** The server is missing configuration a feature needs. */
+export class ServiceUnavailableError extends DomainError {
+  constructor(message: string) {
+    super(message, 503)
+  }
+}

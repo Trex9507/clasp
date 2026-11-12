@@ -20,6 +20,16 @@ const ConfigSchema = z.object({
   // Login is deferred: every request runs as this seeded user (see auth/current-user.ts).
   DEV_USER_EMAIL: z.email().default("dev@clasp.local"),
   // Without a key the API hosts agents on the in-memory FakeRuntime (see server.ts).
+  // 32 bytes, base64 (`openssl rand -base64 32`). Needed only to save MCP bearer tokens.
+  CREDENTIAL_ENCRYPTION_KEY: z
+    .string()
+    .optional()
+    .transform((v) => v || undefined),
+  // Let MCP discovery reach loopback/private addresses. Defaults to on outside production.
+  MCP_ALLOW_PRIVATE_HOSTS: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === "true")),
   ANTHROPIC_API_KEY: z
     .string()
     .optional()

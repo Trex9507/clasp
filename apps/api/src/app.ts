@@ -10,12 +10,23 @@ import type { Config } from "./config.js"
 import type { AgentRuntime } from "@clasp/runtime"
 import type { Db } from "./db/client.js"
 import { DomainError } from "./errors.js"
+import { createSecretBox } from "./crypto.js"
+import { discoverTools, type DiscoverTools } from "./mcp/discovery.js"
 import { v1Routes } from "./routes/v1/index.js"
 
 export interface AppDeps {
-  config: Pick<Config, "CORS_ORIGINS" | "DEV_USER_EMAIL">
+  config: Pick<
+    Config,
+    | "CORS_ORIGINS"
+    | "DEV_USER_EMAIL"
+    | "CREDENTIAL_ENCRYPTION_KEY"
+    | "MCP_ALLOW_PRIVATE_HOSTS"
+    | "NODE_ENV"
+  >
   db: Db
   runtime: AgentRuntime
+  /** Injectable for tests. */
+  discover?: DiscoverTools
   logger?: FastifyServerOptions["logger"]
 }
 
@@ -23,6 +34,7 @@ export async function buildApp({
   config,
   db,
   runtime,
+  discover = discoverTools,
   logger = false,
 }: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({ logger })
@@ -61,6 +73,11 @@ export async function buildApp({
     db,
     runtime,
     devUserEmail: config.DEV_USER_EMAIL,
+    discover,
+    allowPrivateHosts: config.MCP_ALLOW_PRIVATE_HOSTS ?? config.NODE_ENV !== "production",
+    secrets: config.CREDENTIAL_ENCRYPTION_KEY
+      ? createSecretBox(config.CREDENTIAL_ENCRYPTION_KEY)
+      : undefined,
   })
 
   return app

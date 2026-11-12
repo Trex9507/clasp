@@ -9,6 +9,7 @@ import { seedDevUser } from "../db/seed.js"
 import { users, workspaceMembers, workspaces } from "../db/schema.js"
 
 export const DEV_EMAIL = "dev@clasp.local"
+const TEST_KEY = Buffer.alloc(32, 7).toString("base64")
 
 export function useTestApp() {
   const database = createDatabase(inject("databaseUrl"))
@@ -17,13 +18,19 @@ export function useTestApp() {
 
   beforeEach(async () => {
     await database.db.execute(
-      sql`TRUNCATE users, workspaces, workspace_members, agents, agent_versions CASCADE`,
+      sql`TRUNCATE users, workspaces, workspace_members, agents, agent_versions, mcp_connections, runtime_vaults CASCADE`,
     )
     ctx.devUserId = (await seedDevUser(database.db, DEV_EMAIL)).userId
     ctx.runtime = new FakeRuntime()
     ctx.app = await buildApp({
       runtime: ctx.runtime,
-      config: { CORS_ORIGINS: [], DEV_USER_EMAIL: DEV_EMAIL },
+      config: {
+        CORS_ORIGINS: [],
+        DEV_USER_EMAIL: DEV_EMAIL,
+        CREDENTIAL_ENCRYPTION_KEY: TEST_KEY,
+        MCP_ALLOW_PRIVATE_HOSTS: true,
+        NODE_ENV: "test",
+      },
       db: database.db,
     })
   })

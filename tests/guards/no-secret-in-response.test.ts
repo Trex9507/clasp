@@ -23,10 +23,13 @@ function keysOf(schema: ZodType, path: string, out: string[]): void {
 }
 
 describe("no secret in response guard", () => {
-  const schemas = Object.entries(contract).filter(
-    (entry): entry is [string, ZodType] =>
-      typeof (entry[1] as { safeParse?: unknown }).safeParse === "function",
-  )
+  // `*Request` schemas describe what the client sends; a secret may come in, never go out.
+  const schemas = Object.entries(contract)
+    .filter(([name]) => !name.endsWith("Request"))
+    .filter(
+      (entry): entry is [string, ZodType] =>
+        typeof (entry[1] as { safeParse?: unknown }).safeParse === "function",
+    )
 
   it("inspects the contract's schemas", () => {
     expect(schemas.length).toBeGreaterThan(0)

@@ -2,11 +2,15 @@ import {
   Agent,
   AgentListResponse,
   AgentVersionsResponse,
+  McpConnection,
+  McpConnectionListResponse,
   MeResponse,
   ModelsResponse,
   type AgentStatus,
   type CreateAgentRequest,
+  type CreateMcpConnectionRequest,
   type UpdateAgentRequest,
+  type UpdateMcpConnectionRequest,
 } from "@clasp/shared"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -25,6 +29,11 @@ export const queryKeys = {
     [...queryKeys.agents(workspaceId), "detail", agentId] as const,
   agentVersions: (workspaceId: string, agentId: string) =>
     [...queryKeys.agent(workspaceId, agentId), "versions"] as const,
+  /** Prefix of every MCP connection query in a workspace. */
+  connections: (workspaceId: string) => ["workspaces", workspaceId, "mcp-connections"] as const,
+  connectionList: (workspaceId: string) => [...queryKeys.connections(workspaceId), "list"] as const,
+  connection: (workspaceId: string, connectionId: string) =>
+    [...queryKeys.connections(workspaceId), "detail", connectionId] as const,
 }
 
 function agentsPath(workspaceId: string): string {
@@ -142,5 +151,127 @@ export function useSyncAgent(workspaceId: string, agentId: string) {
     onError: (error) => {
       toast.error("Could not sync the agent", { description: errorDetail(error) })
     },
+  })
+}
+
+// --- MCP connections ---------------------------------------------------------------------------
+
+function connectionsPath(workspaceId: string): string {
+  return `/api/v1/workspaces/${encodeURIComponent(workspaceId)}/mcp-connections`
+}
+
+function connectionPath(workspaceId: string, connectionId: string): string {
+  return `${connectionsPath(workspaceId)}/${encodeURIComponent(connectionId)}`
+}
+
+function toolCount(count: number): string {
+  return count === 1 ? "1 tool" : `${count} tools`
+}
+
+/**
+ * One toast for every call that ends in discovery. The API saves a connection even when its
+ * server cannot be reached, so "saved" and "reachable" are reported separately.
+ */
+function reportDiscovery(verb: string, connection: McpConnection) {
+  if (connection.status === "error") {
+    toast.warning(`${verb} ${connection.name}, but could not reach it`, {
+      description: connection.lastError ?? "Discovery failed.",
+    })
+  } else if (connection.status === "ok") {
+    toast.success(`${verb} ${connection.name}`, {
+      description: `Found ${toolCount(connection.tools.length)}.`,
+    })
+  } else {
+    toast.success(`${verb} ${connection.name}`)
+  }
+}
+
+/**
+ * A connection change can turn agents' actions stale (or fresh again) and changes `usedBy`,
+ * so it refreshes both the connections and the agents of the workspace.
+ */
+function useInvalidateConnections(workspaceId: string) {
+  const queryClient = useQueryClient()
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.connections(workspaceId) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.agents(workspaceId) })
+  }
+}
+
+/** The workspace's MCP connections with their discovered tools. */
+export function useConnections(workspaceId: string) {
+  return useQuery({
+    queryKey: queryKeys.connectionList(workspaceId),
+    queryFn: ({ signal }) =>
+      apiGet(connectionsPath(workspaceId), McpConnectionListResponse, { signal }),
+  })
+}
+
+export function useConnection(workspaceId: string, connectionId: string) {
+  return useQuery({
+    queryKey: queryKeys.connection(workspaceId, connectionId),
+    queryFn: ({ signal }) =>
+      apiGet(connectionPath(workspaceId, connectionId), McpConnection, { signal }),
+  })
+}
+
+export function useCreateConnection(workspaceId: string) {
+  const invalidate = useInvalidateConnections(workspaceId)
+  return useMutation({
+    mutationFn: (body: CreateMcpConnectionRequest) =>
+      apiPost(connectionsPath(workspaceId), McpConnection, body),
+    onSuccess: (connection) => {
+      invalidate()
+      reportDiscovery("Connected", connection)
+    },
+    onError: (error) => {
+      toast.error("Could not add the connection", { description: errorDetail(error) })
+    },
+  })
+}
+
+export function useUpdateConnection(workspaceId: string) {
+  const invalidate = useInvalidateConnections(workspaceId)
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateMcpConnectionRequest }) =>
+      apiPatch(connectionPath(workspaceId, id), McpConnection, body),
+    onSuccess: (connection) => {
+      invalidate()
+      reportDiscovery("Saved", connection)
+    },
+    onError: (error) => {
+      toast.error("Could not save the connection", { description: errorDetail(error) })
+    },
+  })
+}
+
+export function useDeleteConnection(workspaceId: string) {
+  const invalidate = useInvalidateConnections(workspaceId)
+  return useMutation({
+    mutationFn: (connectionId: string) => apiDelete(connectionPath(workspaceId, connectionId)),
+    onSuccess: () => {
+      invalidate()
+      toast.success("Connection deleted")
+    },
+    onError: (error) => {
+      // A 409 names the agents still using the connection; its detail is the whole message.
+      toast.error("Could not delete the connection", { description: errorDetail(error) })
+    },
+  })
+}
+
+/** Re-runs tool discovery. A failure (502) still updates the stored status, so both refresh. */
+export function useDiscoverConnection(workspaceId: string) {
+  const invalidate = useInvalidateConnections(workspaceId)
+  return useMutation({
+    mutationFn: (connectionId: string) =>
+      apiPost(`${connectionPath(workspaceId, connectionId)}/discover`, McpConnection),
+    onSuccess: (connection) => {
+      reportDiscovery("Checked", connection)
+    },
+    onError: (error) => {
+      toast.error("Could not reach the server", { description: errorDetail(error) })
+    },
+    onSettled: () => invalidate(),
   })
 }
