@@ -6,3 +6,4 @@ contracts/*/out
 contracts/*/cache
 docs/simulation/*.py
 .claude/skills
+apps/web/.vite

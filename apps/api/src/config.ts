@@ -1,0 +1,33 @@
+import { z } from "zod"
+
+// Read once at startup and fail fast: a missing or malformed setting stops the process with a
+// message naming it, instead of surfacing later as an obscure runtime error.
+const ConfigSchema = z.object({
+  DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  API_PORT: z.coerce.number().int().positive().default(3001),
+  API_HOST: z.string().default("127.0.0.1"),
+  CORS_ORIGINS: z
+    .string()
+    .default("http://localhost:5173")
+    .transform((s) =>
+      s
+        .split(",")
+        .map((o) => o.trim())
+        .filter(Boolean),
+    ),
+  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  // Login is deferred: every request runs as this seeded user (see auth/current-user.ts).
+  DEV_USER_EMAIL: z.email().default("dev@clasp.local"),
+})
+
+export type Config = z.infer<typeof ConfigSchema>
+
+export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
+  const parsed = ConfigSchema.safeParse(env)
+  if (!parsed.success) {
+    const problems = parsed.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`)
+    throw new Error(`Invalid configuration:\n${problems.join("\n")}\nSee .env.example.`)
+  }
+  return parsed.data
+}

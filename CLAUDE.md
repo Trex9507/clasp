@@ -14,10 +14,11 @@ your recommendation. Do not work around a guard, and never weaken a test to make
 ### The four that never move
 
 1. **Every read and write is scoped to a workspace.** Repositories take `workspaceId` as a
-   required argument. _Enforced by: lands with milestone B1 (`tests/guards/workspace-scope.test.ts`
-   plus a cross-workspace integration test)._
+   required argument. _Enforced by: `tests/guards/workspace-scope.test.ts` (its `EXEMPT` map names each unscoped
+   function and why) and the cross-workspace tests in `apps/api/src/routes/v1/foundation.test.ts`._
 2. **No secret leaves the server.** No credential field on any response schema; logs redact
-   secrets. _Enforced by: lands with milestone B1 (`tests/guards/no-secret-in-response.test.ts`)._
+   secrets. _Enforced by: `tests/guards/no-secret-in-response.test.ts`, which walks every schema in
+   `packages/shared/src/api.ts`._
 3. **The model runtime is reached only through `packages/runtime`.** _Enforced by: the
    `no-restricted-imports` rule in `eslint.config.js` (`@anthropic-ai/*` is allowed only in
    `packages/runtime` and the parked `packages/provider-agents`)._
@@ -45,14 +46,14 @@ The original escrow prototype (packages `escrow-mcp-server`, `verifier`, `provid
 
 These arrive with Part B of the plan. Until their check exists, treat each as a convention.
 
-| #   | Invariant                                                                                  | Enforced by                   |
-| --- | ------------------------------------------------------------------------------------------ | ----------------------------- |
-| I1  | The Clasp database is the source of truth; the runtime only holds what `runtime_ref` names | AgentService sync tests (B2)  |
-| I2  | `agent_versions` rows are immutable; a configuration edit creates a new version            | DB trigger + test (B2)        |
-| I3  | One writer per aggregate: `AgentService`, `McpConnectionService`                           | ESLint import boundaries (B1) |
-| I4  | Routes hold no business logic and never import `db/`                                       | ESLint import boundaries (B1) |
-| I5  | Every run writes an `agent_runs` row with its usage                                        | Integration test (B4)         |
-| I6  | `request.user` is set only in `apps/api/src/auth/current-user.ts` (login is deferred)      | `tests/guards/auth-seam` (B1) |
+| #   | Invariant                                                                                  | Enforced by                                |
+| --- | ------------------------------------------------------------------------------------------ | ------------------------------------------ |
+| I1  | The Clasp database is the source of truth; the runtime only holds what `runtime_ref` names | AgentService sync tests (B2)               |
+| I2  | `agent_versions` rows are immutable; a configuration edit creates a new version            | DB trigger + test (B2)                     |
+| I3  | One writer per aggregate: `AgentService`, `McpConnectionService`                           | `REPOSITORY` pattern in `eslint.config.js` |
+| I4  | Routes hold no business logic and never import `db/`                                       | `DB` pattern in `eslint.config.js`         |
+| I5  | Every run writes an `agent_runs` row with its usage                                        | Integration test (B4)                      |
+| I6  | `request.user` is set only in `apps/api/src/auth/current-user.ts` (login is deferred)      | `tests/guards/auth-seam.test.ts`           |
 
 ## 3. Layering
 
@@ -65,7 +66,8 @@ packages/runtime    -> packages/shared
 packages/shared     -> (nothing internal)
 ```
 
-The ESLint boundaries config mirrors this diagram once `apps/` exists (milestone B1).
+`eslint.config.js` enforces the API arrows (the `REPOSITORY` and `DB` patterns) and keeps
+`apps/web` from importing API internals (`API_INTERNALS`).
 
 ## 4. Layout and commands
 

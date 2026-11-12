@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clasp</title>
+
+    <!--
+      Applies the stored theme BEFORE the stylesheet and the app bundle
+      load. This is the one script that has to be inline and blocking.
+
+      Without it every refresh flashes white, even for someone who chose
+      dark: the browser paints its default white, the stylesheet arrives
+      and paints the LIGHT background (because `.dark` lives on <html> and
+      React has not mounted yet to add it), and only then does the theme
+      provider flip it. On a cold module graph in dev that window is long
+      enough to read as "the page went blank".
+
+      `color-scheme` is set at the same time so the very first paint - the
+      one before any CSS - already uses the right canvas colour, form
+      control colours and scrollbars.
+
+      Kept in sync with components/theme-provider.tsx, which owns the same
+      storage key and the same three values. Deliberately duplicated rather
+      than imported: anything imported is a module, and a module runs too
+      late to prevent the flash it exists to prevent.
+    -->
+    <script>
+      ;(function () {
+        try {
+          var stored = localStorage.getItem("theme")
+          var theme =
+            stored === "dark" || stored === "light" || stored === "system" ? stored : "system"
+          var resolved =
+            theme === "system"
+              ? window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light"
+              : theme
+          document.documentElement.classList.add(resolved)
+          document.documentElement.style.colorScheme = resolved
+        } catch (e) {
+          // Blocked site data, a private window, or storage disabled.
+          // Falling through leaves the light default, which is a working
+          // page - and never a reason to stop rendering one.
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
