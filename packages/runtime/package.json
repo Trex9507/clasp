@@ -1,0 +1,23 @@
+{
+  "name": "@clasp/runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AgentRuntime adapter: the only code that talks to the model runtime (Claude Managed Agents).",
+  "type": "module",
+  "exports": {
+    ".": {
+      "@clasp/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "@clasp/shared": "workspace:*"
+  }
+}

@@ -1,7 +1,9 @@
 import { Navigate, type RouteObject } from "react-router"
 
 import { AppShell } from "@/components/app-shell"
+import { AgentDetailPage } from "@/routes/agents/agent-detail-page"
 import { AgentsPage } from "@/routes/agents/agents-page"
+import { CreateAgentPage } from "@/routes/agents/create-agent-page"
 import { ConnectionsPage } from "@/routes/connections/connections-page"
 import { NotFound } from "@/routes/not-found"
 import { RootRedirect } from "@/routes/root-redirect"
@@ -26,6 +28,8 @@ export const routes: RouteObject[] = [
         children: [
           { index: true, element: <Navigate to="agents" replace /> },
           { path: "agents", element: <AgentsPage /> },
+          { path: "agents/new", element: <CreateAgentPage /> },
+          { path: "agents/:agentId", element: <AgentDetailPage /> },
           { path: "connections", element: <ConnectionsPage /> },
           { path: "*", element: <NotFound /> },
         ],

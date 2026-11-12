@@ -2,6 +2,7 @@
 import { sql } from "drizzle-orm"
 import type { FastifyInstance } from "fastify"
 import { afterAll, beforeEach, inject } from "vitest"
+import { FakeRuntime } from "@clasp/runtime"
 import { buildApp } from "../app.js"
 import { createDatabase, type Db } from "../db/client.js"
 import { seedDevUser } from "../db/seed.js"
@@ -11,13 +12,17 @@ export const DEV_EMAIL = "dev@clasp.local"
 
 export function useTestApp() {
   const database = createDatabase(inject("databaseUrl"))
-  const ctx = {} as { app: FastifyInstance; db: Db; devUserId: string }
+  const ctx = {} as { app: FastifyInstance; db: Db; devUserId: string; runtime: FakeRuntime }
   ctx.db = database.db
 
   beforeEach(async () => {
-    await database.db.execute(sql`TRUNCATE users, workspaces, workspace_members CASCADE`)
+    await database.db.execute(
+      sql`TRUNCATE users, workspaces, workspace_members, agents, agent_versions CASCADE`,
+    )
     ctx.devUserId = (await seedDevUser(database.db, DEV_EMAIL)).userId
+    ctx.runtime = new FakeRuntime()
     ctx.app = await buildApp({
+      runtime: ctx.runtime,
       config: { CORS_ORIGINS: [], DEV_USER_EMAIL: DEV_EMAIL },
       db: database.db,
     })

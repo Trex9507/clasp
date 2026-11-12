@@ -59,6 +59,63 @@ export async function apiGet<S extends z.ZodType>(
   return parsed.data
 }
 
+async function send(
+  method: "POST" | "PATCH" | "DELETE",
+  path: string,
+  body: unknown,
+  init?: RequestInit,
+): Promise<Response> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    method,
+    headers: {
+      Accept: "application/json",
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...init?.headers,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  if (!response.ok) throw new ApiError(response.status, await readDetail(response))
+  return response
+}
+
+async function parseBody<S extends z.ZodType>(
+  response: Response,
+  path: string,
+  schema: S,
+): Promise<z.infer<S>> {
+  const parsed = schema.safeParse(await response.json())
+  if (!parsed.success) {
+    throw new ApiError(response.status, `Unexpected response from ${path}.`)
+  }
+  return parsed.data
+}
+
+/** POST a JSON body (or none) and validate the response like `apiGet`. */
+export async function apiPost<S extends z.ZodType>(
+  path: string,
+  schema: S,
+  body?: unknown,
+  init?: RequestInit,
+): Promise<z.infer<S>> {
+  return parseBody(await send("POST", path, body, init), path, schema)
+}
+
+/** PATCH a JSON body and validate the response like `apiGet`. */
+export async function apiPatch<S extends z.ZodType>(
+  path: string,
+  schema: S,
+  body: unknown,
+  init?: RequestInit,
+): Promise<z.infer<S>> {
+  return parseBody(await send("PATCH", path, body, init), path, schema)
+}
+
+/** DELETE a resource. The API answers 204 with no body, so there is nothing to validate. */
+export async function apiDelete(path: string, init?: RequestInit): Promise<void> {
+  await send("DELETE", path, undefined, init)
+}
+
 /**
  * Turn whatever a failed request produced into one renderable line.
  *
