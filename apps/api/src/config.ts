@@ -19,6 +19,11 @@ const ConfigSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   // Login is deferred: every request runs as this seeded user (see auth/current-user.ts).
   DEV_USER_EMAIL: z.email().default("dev@clasp.local"),
+  // Without a key the API hosts agents on the in-memory FakeRuntime (see server.ts).
+  ANTHROPIC_API_KEY: z
+    .string()
+    .optional()
+    .transform((v) => v || undefined),
 })
 
 export type Config = z.infer<typeof ConfigSchema>

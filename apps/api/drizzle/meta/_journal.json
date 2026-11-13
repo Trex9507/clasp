@@ -8,6 +8,20 @@
       "when": 1794497280439,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794510342447,
+      "tag": "0001_agents",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794510342882,
+      "tag": "0002_agent_versions_immutable",
+      "breakpoints": true
     }
   ]
 }

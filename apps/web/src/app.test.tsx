@@ -22,7 +22,7 @@ describe("routing", () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/w/${PERSONAL.id}/agents`))
     expect(await screen.findByRole("heading", { level: 1, name: "Agents" })).toBeTruthy()
-    expect(screen.getByText("No agents yet")).toBeTruthy()
+    expect(await screen.findByText("No agents yet")).toBeTruthy()
   })
 
   it("shows an empty state when the user has no workspace", async () => {

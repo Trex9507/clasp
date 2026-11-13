@@ -7,6 +7,7 @@ import {
   validatorCompiler,
 } from "fastify-type-provider-zod"
 import type { Config } from "./config.js"
+import type { AgentRuntime } from "@clasp/runtime"
 import type { Db } from "./db/client.js"
 import { DomainError } from "./errors.js"
 import { v1Routes } from "./routes/v1/index.js"
@@ -14,10 +15,16 @@ import { v1Routes } from "./routes/v1/index.js"
 export interface AppDeps {
   config: Pick<Config, "CORS_ORIGINS" | "DEV_USER_EMAIL">
   db: Db
+  runtime: AgentRuntime
   logger?: FastifyServerOptions["logger"]
 }
 
-export async function buildApp({ config, db, logger = false }: AppDeps): Promise<FastifyInstance> {
+export async function buildApp({
+  config,
+  db,
+  runtime,
+  logger = false,
+}: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({ logger })
   app.setValidatorCompiler(validatorCompiler)
   app.setSerializerCompiler(serializerCompiler)
@@ -49,7 +56,12 @@ export async function buildApp({ config, db, logger = false }: AppDeps): Promise
   await app.register(cors, { origin: config.CORS_ORIGINS })
 
   app.get("/health", async () => ({ status: "ok" }))
-  await app.register(v1Routes, { prefix: "/api/v1", db, devUserEmail: config.DEV_USER_EMAIL })
+  await app.register(v1Routes, {
+    prefix: "/api/v1",
+    db,
+    runtime,
+    devUserEmail: config.DEV_USER_EMAIL,
+  })
 
   return app
 }

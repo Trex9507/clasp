@@ -15,6 +15,7 @@
     "db:seed": "tsx --conditions=@clasp/source --env-file-if-exists=../../.env src/db/seed.ts"
   },
   "dependencies": {
+    "@clasp/runtime": "workspace:*",
     "@clasp/shared": "workspace:*",
     "@fastify/cors": "^11.4.1",
     "drizzle-orm": "^0.45.4",

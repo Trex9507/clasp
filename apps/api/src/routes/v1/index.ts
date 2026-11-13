@@ -9,16 +9,22 @@ import {
   Workspace,
   WorkspaceParams,
 } from "@clasp/shared"
+import type { AgentRuntime } from "@clasp/runtime"
 import type { Db } from "../../db/client.js"
+import { agentRoutes } from "./agents.js"
 import { registerCurrentUser } from "../../auth/current-user.js"
 import { assertWorkspaceAccess, getMe } from "../../workspaces/workspace-service.js"
 
 export interface V1Options {
   db: Db
+  runtime: AgentRuntime
   devUserEmail: string
 }
 
-export const v1Routes: FastifyPluginAsyncZod<V1Options> = async (app, { db, devUserEmail }) => {
+export const v1Routes: FastifyPluginAsyncZod<V1Options> = async (
+  app,
+  { db, runtime, devUserEmail },
+) => {
   registerCurrentUser(app, db, devUserEmail)
 
   app.get("/me", { schema: { response: { 200: MeResponse } } }, (request) =>
@@ -35,4 +41,6 @@ export const v1Routes: FastifyPluginAsyncZod<V1Options> = async (app, { db, devU
     { schema: { params: WorkspaceParams, response: { 200: Workspace } } },
     (request) => assertWorkspaceAccess(db, request.params.workspaceId, request.user.id),
   )
+
+  await app.register(agentRoutes, { db, runtime })
 }
