@@ -18,6 +18,7 @@
     "@clasp/runtime": "workspace:*",
     "@clasp/shared": "workspace:*",
     "@fastify/cors": "^11.4.1",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.8",
     "fastify-type-provider-zod": "^7.0.0",

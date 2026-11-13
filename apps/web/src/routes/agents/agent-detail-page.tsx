@@ -6,7 +6,7 @@ import {
   MessageSquare,
   MoreHorizontal,
   RefreshCw,
-  Wrench,
+  TriangleAlert,
 } from "lucide-react"
 import * as React from "react"
 import type { Key } from "react-aria-components"
@@ -31,12 +31,14 @@ import {
   useUpdateAgent,
 } from "@/lib/queries"
 import { cn } from "@/lib/utils"
+import { ActionsTab } from "@/routes/agents/actions-tab"
 import { AgentForm } from "@/routes/agents/agent-form"
 import { agentToForm } from "@/routes/agents/agent-form-schema"
 import {
   effortLabel,
   languageLabel,
   modelLabel,
+  permissionLabel,
   useModelCatalog,
 } from "@/routes/agents/agent-labels"
 import { AgentIcon } from "@/routes/agents/agents-page"
@@ -129,11 +131,8 @@ function AgentDetail({ agent, workspaceId }: { agent: Agent; workspaceId: string
           <ConfigurationTab agent={agent} workspaceId={workspaceId} />
         </TabsContent>
         <TabsContent id="actions" className="pt-2">
-          <EmptyState
-            icon={Wrench}
-            title="Actions arrive with MCP connections"
-            description="An action is a tool exposed by an MCP server connected to this workspace. Pick the ones this agent may use."
-          />
+          {/* Keyed by version so a save (a new version) resets the edits to the new baseline. */}
+          <ActionsTab key={agent.currentVersion.id} agent={agent} workspaceId={workspaceId} />
         </TabsContent>
         <TabsContent id="playground" className="pt-2">
           <EmptyState
@@ -287,13 +286,38 @@ function VersionRow({ version, isCurrent }: { version: AgentVersion; isCurrent: 
         <span>{modelLabel(catalog, version.model)}</span>
         <span className="text-muted-foreground">{languageLabel(version.language)}</span>
         <span className="text-muted-foreground">{effortLabel(version.effort)} effort</span>
+        <span className="text-muted-foreground">
+          {version.actions.length === 1 ? "1 action" : `${version.actions.length} actions`}
+        </span>
         <span className="ml-auto text-muted-foreground">
           {version.createdBy.name || version.createdBy.email},{" "}
           <RelativeTime value={version.createdAt} />
         </span>
       </button>
       {open ? (
-        <div id={panelId} className="px-4 pb-4">
+        <div id={panelId} className="grid gap-3 px-4 pb-4">
+          {version.actions.length > 0 ? (
+            <ul className="grid gap-1 text-sm" aria-label={`Actions of v${version.version}`}>
+              {version.actions.map((action) => (
+                <li
+                  key={`${action.connectionId}/${action.toolName}`}
+                  className="flex flex-wrap items-center gap-x-2"
+                >
+                  <span className="text-muted-foreground">{action.connectionName} /</span>
+                  <span className="font-mono">{action.toolName}</span>
+                  <Badge variant="outline">{permissionLabel(action.permission)}</Badge>
+                  {action.stale ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400">
+                      <TriangleAlert className="size-3.5" aria-hidden="true" />
+                      No longer offered
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">No actions.</p>
+          )}
           <pre className="max-h-96 overflow-auto rounded-lg bg-muted p-3 font-mono text-xs whitespace-pre-wrap">
             {version.systemPrompt}
           </pre>

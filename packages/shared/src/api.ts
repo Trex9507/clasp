@@ -60,14 +60,39 @@ export type AgentVisibility = z.infer<typeof AgentVisibility>
 export const Effort = z.enum(["low", "medium", "high"])
 export type Effort = z.infer<typeof Effort>
 
+// --- Actions: tools from MCP connections that an agent may use --------------------------------
+
+/** "auto" runs the tool without asking; "ask" pauses for the user's approval in the playground. */
+export const ActionPermission = z.enum(["auto", "ask"])
+export type ActionPermission = z.infer<typeof ActionPermission>
+
+export const AgentAction = z.object({
+  connectionId: z.uuid(),
+  toolName: z.string().min(1).max(128),
+  permission: ActionPermission.default("ask"),
+  /** Optional guidance on when to use the action; added to the agent's instructions. */
+  usageNote: z.string().trim().max(500).default(""),
+})
+export type AgentAction = z.infer<typeof AgentAction>
+
 /** Everything that defines how an agent behaves. A change to any of it creates a new version. */
 export const AgentConfig = z.object({
   model: z.enum(MODEL_IDS),
   language: z.enum(LANGUAGE_CODES),
   effort: Effort,
   systemPrompt: z.string().trim().min(1, "Write a system prompt").max(50_000),
+  actions: z
+    .array(AgentAction)
+    .max(200)
+    .default([])
+    .refine(
+      (actions) =>
+        new Set(actions.map((a) => `${a.connectionId}/${a.toolName}`)).size === actions.length,
+      "Each action can be added once",
+    ),
 })
 export type AgentConfig = z.infer<typeof AgentConfig>
+export type AgentConfigInput = z.input<typeof AgentConfig>
 
 const AgentName = z.string().trim().min(1, "Give the agent a name").max(80)
 const AgentDescription = z.string().trim().max(500)
@@ -100,6 +125,13 @@ export const AgentVersion = z.object({
   language: z.string(),
   effort: Effort,
   systemPrompt: z.string(),
+  actions: z.array(
+    AgentAction.extend({
+      connectionName: z.string(),
+      /** The connection no longer offers this tool (or was removed); the action is skipped. */
+      stale: z.boolean(),
+    }),
+  ),
   /** False when the runtime could not be updated yet; POST .../sync retries. */
   runtimeSynced: z.boolean(),
   createdAt: z.iso.datetime({ offset: true }),
@@ -146,3 +178,69 @@ export type AgentVersionsResponse = z.infer<typeof AgentVersionsResponse>
 
 export const AgentParams = WorkspaceParams.extend({ agentId: z.uuid() })
 export type AgentParams = z.infer<typeof AgentParams>
+
+// --- MCP connections ---------------------------------------------------------------------------
+
+export const McpAuthType = z.enum(["none", "bearer"])
+export type McpAuthType = z.infer<typeof McpAuthType>
+
+export const McpConnectionStatus = z.enum(["unchecked", "ok", "error"])
+export type McpConnectionStatus = z.infer<typeof McpConnectionStatus>
+
+export const McpTool = z.object({
+  name: z.string(),
+  title: z.string().optional(),
+  description: z.string(),
+  inputSchema: z.record(z.string(), z.unknown()),
+})
+export type McpTool = z.infer<typeof McpTool>
+
+const McpUrl = z.url({ protocol: /^https?$/, error: "Enter an http(s) URL" }).max(2048)
+
+// Request schemas carry the secret inbound; responses never do (tests/guards/no-secret-in-response).
+export const CreateMcpConnectionRequest = z
+  .object({
+    name: z.string().trim().min(1, "Name the connection").max(80),
+    url: McpUrl,
+    authType: McpAuthType.default("none"),
+    bearerToken: z.string().trim().min(1).max(8192).optional(),
+  })
+  .refine((c) => c.authType === "none" || c.bearerToken, {
+    message: "Paste the bearer token",
+    path: ["bearerToken"],
+  })
+export type CreateMcpConnectionRequest = z.input<typeof CreateMcpConnectionRequest>
+
+/** Omitting bearerToken keeps the stored one; switching authType to "none" deletes it. */
+export const UpdateMcpConnectionRequest = z
+  .object({
+    name: z.string().trim().min(1).max(80),
+    url: McpUrl,
+    authType: McpAuthType,
+    bearerToken: z.string().trim().min(1).max(8192),
+  })
+  .partial()
+export type UpdateMcpConnectionRequest = z.infer<typeof UpdateMcpConnectionRequest>
+
+export const McpConnection = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  url: z.string(),
+  authType: McpAuthType,
+  hasCredential: z.boolean(),
+  status: McpConnectionStatus,
+  lastError: z.string().nullable(),
+  lastCheckedAt: z.iso.datetime({ offset: true }).nullable(),
+  tools: z.array(McpTool),
+  /** Active agents whose current version uses at least one of this connection's tools. */
+  usedBy: z.array(z.object({ id: z.uuid(), name: z.string() })),
+  createdAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+})
+export type McpConnection = z.infer<typeof McpConnection>
+
+export const McpConnectionListResponse = z.object({ connections: z.array(McpConnection) })
+export type McpConnectionListResponse = z.infer<typeof McpConnectionListResponse>
+
+export const McpConnectionParams = WorkspaceParams.extend({ connectionId: z.uuid() })
+export type McpConnectionParams = z.infer<typeof McpConnectionParams>

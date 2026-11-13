@@ -1,4 +1,6 @@
 import {
+  ActionPermission,
+  AgentAction,
   AgentConfig,
   AgentVisibility,
   CreateAgentRequest,
@@ -7,6 +9,19 @@ import {
   type Agent,
 } from "@clasp/shared"
 import { z } from "zod"
+
+/**
+ * One action as the web app edits it: the shared schema with its defaults resolved, so the
+ * form's input and output types are the same (react-hook-form needs that) and every action
+ * always carries an explicit permission and note.
+ */
+export const ActionFormSchema = z.object({
+  connectionId: AgentAction.shape.connectionId,
+  toolName: AgentAction.shape.toolName,
+  permission: ActionPermission,
+  usageNote: AgentAction.shape.usageNote.unwrap(),
+})
+export type ActionFormValues = z.infer<typeof ActionFormSchema>
 
 /**
  * The form behind both "Create agent" and an agent's Configuration tab.
@@ -20,7 +35,9 @@ export const AgentFormSchema = z.object({
   description: CreateAgentRequest.shape.description.unwrap(),
   icon: CreateAgentRequest.shape.icon.unwrap(),
   visibility: AgentVisibility,
-  config: AgentConfig,
+  // The Configuration form never edits actions (the Actions tab does), but it must send them
+  // back unchanged: a config PATCH replaces the whole config, so omitting them would wipe them.
+  config: AgentConfig.extend({ actions: z.array(ActionFormSchema).max(200) }),
 })
 export type AgentFormValues = z.infer<typeof AgentFormSchema>
 
@@ -37,6 +54,7 @@ export function emptyAgentForm(): AgentFormValues {
       language: DEFAULT_LANGUAGE,
       effort: "medium",
       systemPrompt: "",
+      actions: [],
     },
   }
 }
@@ -55,6 +73,17 @@ export function agentToForm(agent: Agent): AgentFormValues {
       language: version.language as AgentFormValues["config"]["language"],
       effort: version.effort,
       systemPrompt: version.systemPrompt,
+      actions: versionActions(agent),
     },
   }
+}
+
+/** The current version's actions as the API accepts them back (no display-only fields). */
+export function versionActions(agent: Agent): ActionFormValues[] {
+  return agent.currentVersion.actions.map(({ connectionId, toolName, permission, usageNote }) => ({
+    connectionId,
+    toolName,
+    permission,
+    usageNote,
+  }))
 }

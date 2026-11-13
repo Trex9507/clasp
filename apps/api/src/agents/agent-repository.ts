@@ -144,3 +144,15 @@ export async function markVersionSynced(
       ),
     )
 }
+
+/** Active agents with their current version's actions, to see which use a connection. */
+export async function listActiveAgentActions(
+  db: DbOrTx,
+  workspaceId: string,
+): Promise<{ id: string; name: string; actions: unknown[] }[]> {
+  return db
+    .select({ id: agents.id, name: agents.name, actions: agentVersions.actions })
+    .from(agents)
+    .innerJoin(agentVersions, eq(agentVersions.id, agents.currentVersionId))
+    .where(and(eq(agents.workspaceId, workspaceId), eq(agents.status, "active")))
+}

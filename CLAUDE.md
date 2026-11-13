@@ -17,8 +17,9 @@ your recommendation. Do not work around a guard, and never weaken a test to make
    required argument. _Enforced by: `tests/guards/workspace-scope.test.ts` (its `EXEMPT` map names each unscoped
    function and why) and the cross-workspace tests in `apps/api/src/routes/v1/foundation.test.ts`._
 2. **No secret leaves the server.** No credential field on any response schema; logs redact
-   secrets. _Enforced by: `tests/guards/no-secret-in-response.test.ts`, which walks every schema in
-   `packages/shared/src/api.ts`._
+   secrets. _Enforced by: `tests/guards/no-secret-in-response.test.ts`, which walks every response
+   schema in `packages/shared/src/api.ts` (`*Request` schemas carry secrets inbound and are
+   exempt). Tokens are stored AES-256-GCM-encrypted (`apps/api/src/crypto.ts`)._
 3. **The model runtime is reached only through `packages/runtime`.** _Enforced by: the
    `no-restricted-imports` rule in `eslint.config.js` (`@anthropic-ai/*` is allowed only in
    `packages/runtime` and the parked `packages/provider-agents`)._

@@ -4,7 +4,9 @@ import {
   RuntimeError,
   type AgentRuntime,
   type AgentVersionSpec,
+  type McpCredential,
   type RuntimeAgentRef,
+  type RuntimeVaultRef,
 } from "./types.js"
 
 interface FakeAgent {
@@ -20,6 +22,8 @@ interface FakeAgent {
 export class FakeRuntime implements AgentRuntime {
   readonly provider = "fake"
   readonly agents = new Map<string, FakeAgent>()
+  /** vaultId -> credentialId -> credential */
+  readonly vaults = new Map<string, Map<string, McpCredential>>()
   /** Set to make the next call fail, to exercise the platform's not-synced path. */
   failNext: string | undefined
 
@@ -33,7 +37,7 @@ export class FakeRuntime implements AgentRuntime {
 
   async upsertAgent(spec: AgentVersionSpec, ref?: RuntimeAgentRef): Promise<RuntimeAgentRef> {
     this.maybeFail()
-    const system = buildSystemPrompt(spec.systemPrompt, spec.language)
+    const system = buildSystemPrompt(spec.systemPrompt, spec.language, spec.actions)
     if (!ref) {
       const agentId = `fake_agent_${randomUUID()}`
       this.agents.set(agentId, { versions: [{ spec, system }], archived: false })
@@ -52,7 +56,8 @@ export class FakeRuntime implements AgentRuntime {
       last.spec.providerModelId === spec.providerModelId &&
       last.spec.effort === spec.effort &&
       last.spec.name === spec.name &&
-      last.spec.description === spec.description
+      last.spec.description === spec.description &&
+      JSON.stringify(last.spec.mcpServers) === JSON.stringify(spec.mcpServers)
     if (!unchanged) agent.versions.push({ spec, system })
     return { provider: this.provider, agentId: ref.agentId, version: agent.versions.length }
   }
@@ -61,5 +66,32 @@ export class FakeRuntime implements AgentRuntime {
     this.maybeFail()
     const agent = this.agents.get(ref.agentId)
     if (agent) agent.archived = true
+  }
+
+  async ensureVault(workspaceId: string, existing?: RuntimeVaultRef): Promise<RuntimeVaultRef> {
+    this.maybeFail()
+    if (existing && this.vaults.has(existing.vaultId)) return existing
+    const vaultId = existing?.vaultId ?? `fake_vault_${workspaceId}`
+    this.vaults.set(vaultId, new Map())
+    return { provider: this.provider, vaultId }
+  }
+
+  async putCredential(
+    vault: RuntimeVaultRef,
+    credential: McpCredential,
+    existingId?: string,
+  ): Promise<string> {
+    this.maybeFail()
+    const store = this.vaults.get(vault.vaultId)
+    if (!store) throw new RuntimeError(`Unknown vault ${vault.vaultId}`)
+    if (existingId) store.delete(existingId)
+    const id = `fake_cred_${randomUUID()}`
+    store.set(id, credential)
+    return id
+  }
+
+  async deleteCredential(vault: RuntimeVaultRef, credentialId: string): Promise<void> {
+    this.maybeFail()
+    this.vaults.get(vault.vaultId)?.delete(credentialId)
   }
 }
