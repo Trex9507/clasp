@@ -1,19 +1,25 @@
-name: ci
+name: CI
 
+# Pull requests into any branch, not only main: pull requests are stacked (each targets the one
+# before it), and a check that skips the middle of a stack lets breakage through.
 on:
+  pull_request:
   push:
     branches: [main]
-  pull_request:
+  workflow_dispatch: {}
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  typescript:
-    name: lint, typecheck, test
+  check:
+    name: fmt-check / lint / types / test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    # Everything except the web app's build, which runs in `ui` so a failure points at its owner.
+    # The API's integration tests start Postgres with testcontainers, which needs the Docker that
+    # ubuntu runners provide. The tests use FakeRuntime and never call a real model.
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -22,16 +28,65 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm format:check
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm build
+
+      - name: fmt-check
+        run: pnpm format:check
+
+      - name: lint
+        run: pnpm lint
+
+      - name: types
+        run: pnpm -r --filter '!@clasp/web' --if-present typecheck
+
+      # The guards in tests/guards enforce CLAUDE.md's rules; they run first, by name.
+      - name: guards
+        run: pnpm test:guards
+
+      - name: test
+        run: pnpm -r --filter '!@clasp/web' --if-present test
+
+      - name: build
+        run: pnpm -r --filter '!@clasp/web' --if-present build
+
+  ui:
+    name: ui-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The web app on its own. Web and API share their contract through @clasp/shared rather than a
+    # generated client, so there is no generated code to drift: if the API's types change, this
+    # job's typecheck is the check that fails.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: types
+        run: pnpm --filter @clasp/web typecheck
+
+      - name: test
+        run: pnpm --filter @clasp/web test
+
+      # Vite only warns about oversized chunks; this makes the warning fail the build, so the
+      # per-route and vendor splitting (CLAUDE.md, section 4) cannot quietly regress.
+      - name: build (chunk size gate)
+        run: |
+          set -o pipefail
+          pnpm --filter @clasp/web build 2>&1 | tee build.log
+          if grep -q "Some chunks are larger" build.log; then
+            echo "::error::A web chunk is over Vite's 500 kB limit. Lazy-load the page or add a vendor group in apps/web/vite.config.ts."
+            exit 1
+          fi
 
   contracts:
     name: contracts (forge)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The parked escrow contract stays green (CLAUDE.md, section 1). Foundry is not part of the
+    # Node toolchain, so it runs here rather than in `check`.
     defaults:
       run:
         working-directory: contracts/escrow
@@ -43,11 +98,61 @@ jobs:
       - run: forge build
       - run: forge test -vv
 
-  gitleaks:
+  changelog:
+    name: changelog entry
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # A change to product code records why it was made in docs/CHANGELOG.md, the same rule
+    # Sentinel enforces. This is the half that can be checked; whether the entry is good is the
+    # reviewer's job.
+    #
+    # Pull requests only: a direct push to main has no base to diff against.
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: A change to apps, packages, contracts or db needs a changelog entry
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          changed=$(git diff --name-only "$BASE" "$HEAD")
+
+          # The escape hatch is in the PR title, where reviewers see it, not in a label.
+          case "$TITLE" in
+            *"[no-changelog]"*)
+              echo "Title carries [no-changelog] - skipping."
+              exit 0
+              ;;
+          esac
+
+          if ! grep -qE '^(apps/|packages/|contracts/|db/)' <<< "$changed"; then
+            echo "No change under apps/, packages/, contracts/ or db/ - nothing to record."
+            exit 0
+          fi
+
+          if grep -qx 'docs/CHANGELOG.md' <<< "$changed"; then
+            echo "Changelog touched."
+            exit 0
+          fi
+
+          echo "::error::This PR changes apps/, packages/, contracts/ or db/ without touching docs/CHANGELOG.md."
+          echo "Prepend a dated entry (newest first), or put [no-changelog] in the PR title."
+          echo ""
+          echo "Changed files:"
+          grep -E '^(apps/|packages/|contracts/|db/)' <<< "$changed" | sed 's/^/  /'
+          exit 1
+
+  secret-scan:
     name: secret scan (gitleaks)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # gitleaks-action needs pull-requests access to list a PR's commits.
+    # gitleaks-action needs pull-requests access to list a PR's commits and comment on findings.
+    # No GITLEAKS_LICENSE is needed for a repository owned by a personal account.
     permissions:
       contents: read
       pull-requests: write
