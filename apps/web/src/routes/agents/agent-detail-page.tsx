@@ -3,7 +3,6 @@ import {
   Archive,
   ChevronRight,
   FileQuestion,
-  MessageSquare,
   MoreHorizontal,
   RefreshCw,
   TriangleAlert,
@@ -42,6 +41,7 @@ import {
   useModelCatalog,
 } from "@/routes/agents/agent-labels"
 import { AgentIcon } from "@/routes/agents/agents-page"
+import { PlaygroundTab } from "@/routes/agents/playground-tab"
 
 const TABS = ["configuration", "actions", "playground", "versions"] as const
 type Tab = (typeof TABS)[number]
@@ -135,11 +135,7 @@ function AgentDetail({ agent, workspaceId }: { agent: Agent; workspaceId: string
           <ActionsTab key={agent.currentVersion.id} agent={agent} workspaceId={workspaceId} />
         </TabsContent>
         <TabsContent id="playground" className="pt-2">
-          <EmptyState
-            icon={MessageSquare}
-            title="Try your agent here soon"
-            description="The playground will let you chat with the current version before you share it."
-          />
+          <PlaygroundTab agent={agent} workspaceId={workspaceId} />
         </TabsContent>
         <TabsContent id="versions" className="pt-2">
           <VersionsTab agent={agent} workspaceId={workspaceId} />

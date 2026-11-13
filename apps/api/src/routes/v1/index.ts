@@ -4,6 +4,7 @@ import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod"
 import {
   DEFAULT_MODEL_ID,
   MeResponse,
+  PlatformResponse,
   MODELS,
   ModelsResponse,
   Workspace,
@@ -13,6 +14,7 @@ import type { AgentRuntime } from "@clasp/runtime"
 import type { Db } from "../../db/client.js"
 import { agentRoutes } from "./agents.js"
 import { mcpConnectionRoutes } from "./mcp-connections.js"
+import { runRoutes } from "./runs.js"
 import type { SecretBox } from "../../crypto.js"
 import type { DiscoverTools } from "../../mcp/discovery.js"
 import { registerCurrentUser } from "../../auth/current-user.js"
@@ -25,17 +27,22 @@ export interface V1Options {
   discover: DiscoverTools
   allowPrivateHosts: boolean
   secrets: SecretBox | undefined
+  runBudgetCents: number
 }
 
 export const v1Routes: FastifyPluginAsyncZod<V1Options> = async (
   app,
-  { db, runtime, devUserEmail, discover, allowPrivateHosts, secrets },
+  { db, runtime, devUserEmail, discover, allowPrivateHosts, secrets, runBudgetCents },
 ) => {
   registerCurrentUser(app, db, devUserEmail)
 
   app.get("/me", { schema: { response: { 200: MeResponse } } }, (request) =>
     getMe(db, request.user),
   )
+
+  app.get("/platform", { schema: { response: { 200: PlatformResponse } } }, async () => ({
+    runtime: { provider: runtime.provider, simulated: runtime.provider === "fake" },
+  }))
 
   app.get("/models", { schema: { response: { 200: ModelsResponse } } }, async () => ({
     models: [...MODELS],
@@ -50,4 +57,5 @@ export const v1Routes: FastifyPluginAsyncZod<V1Options> = async (
 
   await app.register(agentRoutes, { db, runtime })
   await app.register(mcpConnectionRoutes, { db, runtime, discover, allowPrivateHosts, secrets })
+  await app.register(runRoutes, { db, runtime, budgetCents: runBudgetCents })
 }

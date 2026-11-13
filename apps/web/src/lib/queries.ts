@@ -6,16 +6,27 @@ import {
   McpConnectionListResponse,
   MeResponse,
   ModelsResponse,
+  PlatformResponse,
+  RunListResponse,
+  RunWithEvents,
   type AgentStatus,
   type CreateAgentRequest,
   type CreateMcpConnectionRequest,
+  type ToolDecisionRequest,
   type UpdateAgentRequest,
   type UpdateMcpConnectionRequest,
 } from "@clasp/shared"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
-import { apiDelete, apiGet, apiPatch, apiPost, errorDetail } from "@/lib/api-client"
+import {
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+  apiPostNoContent,
+  errorDetail,
+} from "@/lib/api-client"
 
 /** Query keys in one place, so invalidation never guesses at a string. */
 export const queryKeys = {
@@ -34,6 +45,10 @@ export const queryKeys = {
   connectionList: (workspaceId: string) => [...queryKeys.connections(workspaceId), "list"] as const,
   connection: (workspaceId: string, connectionId: string) =>
     [...queryKeys.connections(workspaceId), "detail", connectionId] as const,
+  platform: ["platform"] as const,
+  agentRuns: (workspaceId: string, agentId: string) =>
+    [...queryKeys.agent(workspaceId, agentId), "runs"] as const,
+  run: (workspaceId: string, runId: string) => ["workspaces", workspaceId, "runs", runId] as const,
 }
 
 function agentsPath(workspaceId: string): string {
@@ -273,5 +288,83 @@ export function useDiscoverConnection(workspaceId: string) {
       toast.error("Could not reach the server", { description: errorDetail(error) })
     },
     onSettled: () => invalidate(),
+  })
+}
+
+// --- Runs (the Playground) ---------------------------------------------------------------------
+
+function runPath(workspaceId: string, runId: string): string {
+  return `/api/v1/workspaces/${encodeURIComponent(workspaceId)}/runs/${encodeURIComponent(runId)}`
+}
+
+/** Which runtime hosts agents. It changes only on deploy. */
+export function usePlatform() {
+  return useQuery({
+    queryKey: queryKeys.platform,
+    queryFn: ({ signal }) => apiGet("/api/v1/platform", PlatformResponse, { signal }),
+    staleTime: Infinity,
+  })
+}
+
+/** An agent's most recent runs, newest first. */
+export function useRuns(workspaceId: string, agentId: string) {
+  return useQuery({
+    queryKey: queryKeys.agentRuns(workspaceId, agentId),
+    queryFn: ({ signal }) =>
+      apiGet(`${agentPath(workspaceId, agentId)}/runs`, RunListResponse, { signal }),
+  })
+}
+
+/**
+ * One run with its history. Live changes arrive through `useRunStream`; this query supplies
+ * what the stream does not carry (the pinned version, the budget) and the starting point.
+ */
+export function useRun(workspaceId: string, runId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.run(workspaceId, runId ?? ""),
+    queryFn: ({ signal }) => apiGet(runPath(workspaceId, runId ?? ""), RunWithEvents, { signal }),
+    enabled: runId !== null,
+  })
+}
+
+/**
+ * Starts a run. Failures (an archived or not yet hosted agent) are shown inline by the
+ * composer that started it, so there is no toast here.
+ */
+export function useStartRun(workspaceId: string, agentId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiPost(`${agentPath(workspaceId, agentId)}/runs`, RunWithEvents),
+    onSuccess: (run) => {
+      queryClient.setQueryData(queryKeys.run(workspaceId, run.id), run)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.agentRuns(workspaceId, agentId) })
+    },
+  })
+}
+
+/** Sends a user message. Like starting a run, its failure is shown inline by the composer. */
+export function useSendRunMessage(workspaceId: string) {
+  return useMutation({
+    mutationFn: ({ runId, text }: { runId: string; text: string }) =>
+      apiPostNoContent(`${runPath(workspaceId, runId)}/messages`, { text }),
+  })
+}
+
+export function useToolDecision(workspaceId: string, runId: string) {
+  return useMutation({
+    mutationFn: (body: ToolDecisionRequest) =>
+      apiPostNoContent(`${runPath(workspaceId, runId)}/tool-decisions`, body),
+    onError: (error) => {
+      toast.error("Could not send your decision", { description: errorDetail(error) })
+    },
+  })
+}
+
+export function useInterruptRun(workspaceId: string, runId: string) {
+  return useMutation({
+    mutationFn: () => apiPostNoContent(`${runPath(workspaceId, runId)}/interrupt`),
+    onError: (error) => {
+      toast.error("Could not stop the agent", { description: errorDetail(error) })
+    },
   })
 }

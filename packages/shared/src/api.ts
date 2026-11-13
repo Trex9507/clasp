@@ -244,3 +244,110 @@ export type McpConnectionListResponse = z.infer<typeof McpConnectionListResponse
 
 export const McpConnectionParams = WorkspaceParams.extend({ connectionId: z.uuid() })
 export type McpConnectionParams = z.infer<typeof McpConnectionParams>
+
+// --- Runs: playground sessions with a hosted agent ----------------------------------------------
+
+export const RunStatus = z.enum([
+  "running",
+  "idle",
+  /** Waiting for the user to approve or deny one or more "ask" actions. */
+  "awaiting_approval",
+  /** Paused at the run's spending cap. */
+  "budget_reached",
+  "ended",
+  "error",
+])
+export type RunStatus = z.infer<typeof RunStatus>
+
+export const RunUsage = z.object({
+  inputTokens: z.number().int().nonnegative(),
+  outputTokens: z.number().int().nonnegative(),
+  cacheReadTokens: z.number().int().nonnegative(),
+  cacheCreationTokens: z.number().int().nonnegative(),
+  /** List cost in US cents, as reported by the runtime. */
+  costCents: z.number().int().nonnegative(),
+})
+export type RunUsage = z.infer<typeof RunUsage>
+
+const EventBase = { id: z.string(), at: z.iso.datetime({ offset: true }) }
+
+/** What happened in a run, normalized from the runtime's event stream. */
+export const RunEvent = z.discriminatedUnion("kind", [
+  z.object({ ...EventBase, kind: z.literal("user_message"), text: z.string() }),
+  z.object({ ...EventBase, kind: z.literal("agent_message"), text: z.string() }),
+  z.object({ ...EventBase, kind: z.literal("thinking") }),
+  z.object({
+    ...EventBase,
+    kind: z.literal("tool_call"),
+    toolName: z.string(),
+    /** The connection's name in Clasp, or the runtime's server name if unknown. */
+    connectionName: z.string(),
+    input: z.record(z.string(), z.unknown()),
+    /** How the runtime treated the call: "ask" waits for the user's decision. */
+    permission: z.enum(["allow", "ask", "deny"]),
+  }),
+  z.object({
+    ...EventBase,
+    kind: z.literal("tool_result"),
+    toolCallId: z.string(),
+    output: z.string(),
+    isError: z.boolean(),
+  }),
+  z.object({
+    ...EventBase,
+    kind: z.literal("tool_decision"),
+    toolCallId: z.string(),
+    decision: z.enum(["allow", "deny"]),
+  }),
+  z.object({
+    ...EventBase,
+    kind: z.literal("status"),
+    status: RunStatus,
+    /** Tool calls waiting for a decision when status is "awaiting_approval". */
+    pendingToolCallIds: z.array(z.string()),
+  }),
+  z.object({ ...EventBase, kind: z.literal("usage"), usage: RunUsage }),
+  z.object({ ...EventBase, kind: z.literal("error"), message: z.string() }),
+])
+export type RunEvent = z.infer<typeof RunEvent>
+
+export const Run = z.object({
+  id: z.uuid(),
+  agentId: z.uuid(),
+  agentVersion: z.number().int().positive(),
+  status: RunStatus,
+  usage: RunUsage,
+  budgetCents: z.number().int().positive(),
+  createdBy: User,
+  startedAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+})
+export type Run = z.infer<typeof Run>
+
+export const RunWithEvents = Run.extend({ events: z.array(RunEvent) })
+export type RunWithEvents = z.infer<typeof RunWithEvents>
+
+export const RunListResponse = z.object({ runs: z.array(Run) })
+export type RunListResponse = z.infer<typeof RunListResponse>
+
+export const SendRunMessageRequest = z.object({
+  text: z.string().trim().min(1, "Write a message").max(20_000),
+})
+export type SendRunMessageRequest = z.infer<typeof SendRunMessageRequest>
+
+export const ToolDecisionRequest = z.object({
+  toolCallId: z.string().min(1),
+  decision: z.enum(["allow", "deny"]),
+  /** Shown to the agent when denying, so it can adjust. */
+  denyMessage: z.string().trim().max(1000).optional(),
+})
+export type ToolDecisionRequest = z.infer<typeof ToolDecisionRequest>
+
+export const RunParams = WorkspaceParams.extend({ runId: z.uuid() })
+export type RunParams = z.infer<typeof RunParams>
+
+/** Which runtime hosts agents; "simulated" means replies are placeholders (no API key set). */
+export const PlatformResponse = z.object({
+  runtime: z.object({ provider: z.string(), simulated: z.boolean() }),
+})
+export type PlatformResponse = z.infer<typeof PlatformResponse>

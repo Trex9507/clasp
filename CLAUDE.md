@@ -53,7 +53,7 @@ Rows whose check names a later milestone are conventions until that check exists
 | I2  | `agent_versions` rows are immutable; a configuration edit creates a new version            | trigger in `apps/api/drizzle/0002_*` + its test in `agents.test.ts` |
 | I3  | One writer per aggregate: `AgentService`, `McpConnectionService`                           | `REPOSITORY` pattern in `eslint.config.js`                          |
 | I4  | Routes hold no business logic and never import `db/`                                       | `DB` pattern in `eslint.config.js`                                  |
-| I5  | Every run writes an `agent_runs` row with its usage                                        | Integration test (B4)                                               |
+| I5  | Every run writes an `agent_runs` row with its usage                                        | `apps/api/src/runs/runs.test.ts` (usage on the ledger)              |
 | I6  | `request.user` is set only in `apps/api/src/auth/current-user.ts` (login is deferred)      | `tests/guards/auth-seam.test.ts`                                    |
 
 ## 3. Layering

@@ -15,11 +15,11 @@ import {
   type UpdateAgentRequest,
   type User,
 } from "@clasp/shared"
-import type { AgentRuntime, McpServerSpec } from "@clasp/runtime"
+import type { AgentRuntime, McpServerSpec, RuntimeAgentRef } from "@clasp/runtime"
 import type { FastifyBaseLogger } from "fastify"
 import { z } from "zod"
 import type { Db, DbOrTx } from "../db/client.js"
-import { ConflictError, NotFoundError, ValidationError } from "../errors.js"
+import { ConflictError, NotFoundError, UpstreamError, ValidationError } from "../errors.js"
 import { assertWorkspaceAccess } from "../workspaces/workspace-service.js"
 import { findConnectionsByIds, type McpConnectionRow } from "../mcp/mcp-connection-repository.js"
 import {
@@ -156,6 +156,7 @@ async function syncCurrentVersion(
   deps: AgentDeps,
   workspaceId: string,
   agentId: string,
+  options: { recreate?: boolean } = {},
 ): Promise<void> {
   const agent = await findAgent(deps.db, workspaceId, agentId)
   const current = await findCurrentVersion(deps.db, workspaceId, agentId)
@@ -183,7 +184,11 @@ async function syncCurrentVersion(
   }
   // A ref from another runtime (e.g. created on the fake runtime before a key was configured)
   // cannot be updated here, so the agent is created afresh in this runtime.
-  const ref = agent.runtimeRef?.provider === deps.runtime.provider ? agent.runtimeRef : undefined
+  // `recreate` forgets the ref, for a runtime that no longer has the agent.
+  const ref =
+    !options.recreate && agent.runtimeRef?.provider === deps.runtime.provider
+      ? agent.runtimeRef
+      : undefined
   try {
     const synced = await deps.runtime.upsertAgent(
       {
@@ -210,6 +215,11 @@ async function syncCurrentVersion(
   } catch (error) {
     deps.log.warn({ err: error, agentId }, "runtime sync failed; version saved but not synced")
   }
+}
+
+/** Pushes the current version to the runtime again, e.g. after the runtime lost the agent. */
+export async function resyncAgent(deps: AgentDeps, workspaceId: string, agentId: string) {
+  await syncCurrentVersion(deps, workspaceId, agentId, { recreate: true })
 }
 
 /** Active agents whose current version uses one of the connection's tools. */
@@ -345,6 +355,40 @@ export async function updateAgent(
   })
   if (needsSync) await syncCurrentVersion(deps, workspaceId, agentId)
   return loadAgent(deps, workspaceId, agentId)
+}
+
+/**
+ * The runtime agent and version that host the agent's current Clasp version, syncing first if
+ * needed. Sessions pin to this version, so a run keeps the configuration it started with.
+ */
+export async function hostedVersion(
+  deps: AgentDeps,
+  workspaceId: string,
+  agentId: string,
+): Promise<{ ref: RuntimeAgentRef; versionId: string }> {
+  const load = async () => ({
+    agent: await findAgent(deps.db, workspaceId, agentId),
+    current: await findCurrentVersion(deps.db, workspaceId, agentId),
+  })
+  let { agent, current } = await load()
+  if (!agent || !current) throw new NotFoundError("Agent not found")
+  if (agent.status === "archived") throw new ConflictError("Archived agents cannot run")
+  const hosted = () =>
+    agent?.runtimeRef?.provider === deps.runtime.provider &&
+    current?.version.runtimeSyncedVersion != null
+  if (!hosted()) {
+    await syncCurrentVersion(deps, workspaceId, agentId)
+    ;({ agent, current } = await load())
+  }
+  if (!agent?.runtimeRef || !current || !hosted()) {
+    throw new UpstreamError(
+      "The agent could not be hosted on the runtime. Retry from the agent page.",
+    )
+  }
+  return {
+    ref: { ...agent.runtimeRef, version: current.version.runtimeSyncedVersion as number },
+    versionId: current.version.id,
+  }
 }
 
 /** Retries pushing the current version when an earlier save could not reach the runtime. */

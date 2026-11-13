@@ -30,6 +30,8 @@ const ConfigSchema = z.object({
     .enum(["true", "false"])
     .optional()
     .transform((v) => (v === undefined ? undefined : v === "true")),
+  // Spending cap for each playground run, in US cents (default $1.00).
+  RUN_BUDGET_CENTS: z.coerce.number().int().positive().default(100),
   ANTHROPIC_API_KEY: z
     .string()
     .optional()

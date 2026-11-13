@@ -18,7 +18,7 @@ export function useTestApp() {
 
   beforeEach(async () => {
     await database.db.execute(
-      sql`TRUNCATE users, workspaces, workspace_members, agents, agent_versions, mcp_connections, runtime_vaults CASCADE`,
+      sql`TRUNCATE users, workspaces, workspace_members, agents, agent_versions, mcp_connections, runtime_vaults, agent_runs, runtime_environments CASCADE`,
     )
     ctx.devUserId = (await seedDevUser(database.db, DEV_EMAIL)).userId
     ctx.runtime = new FakeRuntime()
@@ -30,6 +30,7 @@ export function useTestApp() {
         CREDENTIAL_ENCRYPTION_KEY: TEST_KEY,
         MCP_ALLOW_PRIVATE_HOSTS: true,
         NODE_ENV: "test",
+        RUN_BUDGET_CENTS: 100,
       },
       db: database.db,
     })
