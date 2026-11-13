@@ -92,8 +92,20 @@ See [README.md](README.md) for the layout and local setup. Commands, all from th
 | `pnpm --filter @clasp/api dev` / `@clasp/web dev` | API on :3001 / web app on :5173 (proxies `/api`)             |
 | `cd contracts/escrow && forge test`               | contract tests (needs Foundry and initialised submodules)    |
 
-CI (`.github/workflows/ci.yml`) runs format, lint, typecheck, test and build, the contract tests,
-and a gitleaks secret scan.
+CI (`.github/workflows/ci.yml`, structured like Sentinel's) runs on every pull request, whatever
+its base, and on pushes to `main`. Its jobs: `check` (fmt-check, lint, types, guards, test and
+build for everything but the web app), `ui` (the web app's types, tests and build), `contracts`
+(forge), `changelog` and `secret-scan` (gitleaks). Model evals run in their own workflow (section 10).
+
+Two rules CI enforces beyond the tests:
+
+- **A change under `apps/`, `packages/`, `contracts/` or `db/` adds an entry to
+  [docs/CHANGELOG.md](docs/CHANGELOG.md)** (dated, newest first, never edited afterwards).
+  _Enforced by: the `changelog entry` job; `[no-changelog]` in the PR title is the visible
+  escape hatch for changes with nothing to record._
+- **No web chunk exceeds Vite's 500 kB limit.** Pages load lazily from
+  `apps/web/src/app-routes.tsx` and libraries go to the vendor groups in `apps/web/vite.config.ts`.
+  _Enforced by: the `build (chunk size gate)` step of the `ui` job._
 
 ## 5. TypeScript and data
 
@@ -192,5 +204,3 @@ hand-labelled replies before trusting it.
 - Comments explain why, not what.
 - `.env.example` lists every key the code reads, with no values.
 - Prefer one well-named function over a flag that switches between two behaviours.
-- Every web page loads lazily from `apps/web/src/app-routes.tsx`; libraries go to the named vendor
-  chunks in `apps/web/vite.config.ts`, which keeps every chunk under Vite's size warning.
