@@ -7,7 +7,12 @@ import { defineConfig, globalIgnores } from "eslint/config"
 
 // The model runtime is reached only through packages/runtime (CLAUDE.md, rule 3).
 // The parked provider agents predate the platform and keep their direct client.
-const RUNTIME_SDK_ALLOWED = ["packages/runtime/**", "packages/provider-agents/**"]
+// Evals call the Messages API directly: to stub side-effecting tools and to run the judge.
+const RUNTIME_SDK_ALLOWED = [
+  "packages/runtime/**",
+  "packages/provider-agents/**",
+  "packages/evals/**",
+]
 const RUNTIME_SDK = {
   group: ["@anthropic-ai/*", "@anthropic-ai/sdk"],
   message: "Reach the model runtime through @clasp/runtime (CLAUDE.md, rule 3).",

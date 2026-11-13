@@ -1,0 +1,19 @@
+{
+  "name": "@clasp/evals",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Evals for the behavior Clasp's code controls in every hosted agent.",
+  "type": "module",
+  "scripts": {
+    "eval": "tsx --conditions=@clasp/source --env-file-if-exists=../../.env src/run.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "@clasp/runtime": "workspace:*",
+    "@clasp/shared": "workspace:*",
+    "braintrust": "3.44.0",
+    "franc-min": "^6.2.0"
+  }
+}
