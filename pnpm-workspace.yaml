@@ -2,6 +2,11 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# Dependency build scripts are denied unless listed here.
 # esbuild (used by tsx and vitest) validates its native binary on install.
+# The others are optional native speedups pulled in by testcontainers; not needed.
 allowBuilds:
   esbuild: true
+  cpu-features: false
+  protobufjs: false
+  ssh2: false

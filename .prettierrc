@@ -4,5 +4,15 @@
   "singleQuote": false,
   "tabWidth": 2,
   "trailingComma": "all",
-  "printWidth": 100
+  "printWidth": 100,
+  "overrides": [
+    {
+      "files": "apps/web/**",
+      "options": {
+        "plugins": ["prettier-plugin-tailwindcss"],
+        "tailwindStylesheet": "apps/web/src/index.css",
+        "tailwindFunctions": ["cn", "cva"]
+      }
+    }
+  ]
 }

@@ -12,11 +12,11 @@ The repository also holds the original Clasp prototype: escrow for paid work bet
 
 ```
 apps/
-  web/                 platform UI (React, Vite, shadcn)           [Part B]
-  api/                 control-plane API (Fastify, Postgres)        [Part B]
+  web/                 platform UI (React, Vite, shadcn)
+  api/                 control-plane API (Fastify, Drizzle, Postgres)
 packages/
-  shared/              schemas shared by web and api                [Part B]
-  runtime/             AgentRuntime adapter (Claude Managed Agents) [Part B]
+  shared/              schemas, model catalog and languages shared by web and api
+  runtime/             AgentRuntime adapter for Claude Managed Agents (milestone B2)
   escrow-mcp-server/   parked: MCP server for the escrow prototype
   verifier/            parked: acceptance-criteria verifier, owns the JobSpec schema
   provider-agents/     parked: provider agents for the escrow prototype
@@ -38,6 +38,18 @@ pnpm lint
 pnpm typecheck
 pnpm build
 ```
+
+Run the platform locally (needs Docker):
+
+```bash
+docker compose up -d postgres            # Postgres on localhost:5433
+pnpm --filter @clasp/api db:migrate
+pnpm --filter @clasp/api db:seed         # dev@clasp.local and a personal workspace
+pnpm --filter @clasp/api dev             # API on http://localhost:3001
+pnpm --filter @clasp/web dev             # web app on http://localhost:5173
+```
+
+Login is deferred: every request runs as the seeded development user.
 
 Contracts:
 
